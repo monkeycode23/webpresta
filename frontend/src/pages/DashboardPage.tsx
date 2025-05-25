@@ -4,8 +4,6 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import apiService, { ResumenCliente, Pago, Prestamo } from '../services/api';
 import LoadingSpinner from '../components/LoadingSpinner';
-import PaymentModal from 'components/PaymentModal';
-
 
 const DashboardPage: React.FC = () => {
   const { user } = useAuth();
@@ -22,19 +20,8 @@ const DashboardPage: React.FC = () => {
       setIsLoading(true);
       try {
         const data = await apiService.getResumenCliente(user.id);
-
-         const allPaymentsWithLoanLabel = data.prestamos.prestamos.flatMap((loan: Prestamo) => 
-          loan.payments.map((payment: Pago) => ({
-            ...payment,
-            prestamo_label: loan.label
-          }))
-        ); 
-        console.log(allPaymentsWithLoanLabel);
         console.log(data);
-        setResumen({
-          ...data,
-          pagosRecientes: allPaymentsWithLoanLabel
-        });
+        setResumen(data);
         setError(null);
       } catch (err: any) {
         console.error('Error al obtener resumen:', err);
@@ -187,26 +174,24 @@ const DashboardPage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {resumen.pagosRecientes.map((pago: Pago) => (
-                    <tr
-                      key={pago._id}
-                      onClick={() => handlePaymentClick(pago)}
-                      style={{ cursor: 'pointer' }}
-                      className="payment-row"
-                    >
-                      <td>{formatDate(pago.payment_date)}</td>
-                      <td>
-                        {pago.prestamo_label}
-                      </td>
-                      <td>{pago.label}</td>
-                      <td>{formatCurrency(pago.amount)}</td>
-                      <td>{pago.payment_method || 'Efectivo'}</td>
-                      <td>
-                        <Badge bg={getBadgeVariant(pago.status)}>
-                          {pago.status}
-                        </Badge>
-                      </td>
-                    </tr>
+                  {resumen.pagosRecientes.map((pago: Pago) =>(
+                      <tr 
+                        key={pago._id} 
+                        onClick={() => handlePaymentClick(pago)}
+                        style={{ cursor: 'pointer' }}
+                        className="payment-row"
+                      >
+                        <td>{formatDate(pago.payment_date)}</td>
+                        <td>{typeof pago.prestamo === 'object' ? pago.prestamo.label : pago.prestamo}</td>
+                        <td>{pago.label}</td>
+                        <td>{formatCurrency(pago.amount)}</td>
+                        <td>{pago.payment_method || 'Efectivo'}</td>
+                        <td>
+                          <Badge bg={getBadgeVariant(pago.status)}>
+                            {pago.status}
+                          </Badge>
+                        </td>
+                      </tr>
                   ))}
                 </tbody>
               </table>
@@ -220,7 +205,7 @@ const DashboardPage: React.FC = () => {
         <Alert variant="info">No hay pagos recientes para mostrar</Alert>
       )}
 
-      {/* <Modal show={showModal} onHide={() => setShowModal(false)} size="lg">
+      <Modal show={showModal} onHide={() => setShowModal(false)} size="lg">
         <Modal.Header closeButton>
           <Modal.Title>Detalles del Pago</Modal.Title>
         </Modal.Header>
@@ -312,12 +297,7 @@ const DashboardPage: React.FC = () => {
             Cerrar
           </button>
         </Modal.Footer>
-      </Modal> */}
-       <PaymentModal
-        show={showModal}
-        onHide={() => setShowModal(false)}
-        payment={selectedPayment}
-      />
+      </Modal>
     </div>
   );
 };

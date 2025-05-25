@@ -20,7 +20,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ show, onHide, payment }) =>
       style: 'currency',
       currency: 'ARS',
       minimumFractionDigits: 0,
-      maximumFractionDigits: 0
+    maximumFractionDigits: 0
     }).format(amount);
   };
 
@@ -52,14 +52,14 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ show, onHide, payment }) =>
     // If already paid or completed, it's not "late" in terms of needing action.
     // It might have been paid late, but its current state is resolved.
     if (status === 'Completado' || status === 'Pagado') {
-      if (paidDate) {
-        const dueDate = new Date(paymentDate);
-        const actualPaidDate = new Date(paidDate);
-        dueDate.setHours(0, 0, 0, 0);
-        actualPaidDate.setHours(0, 0, 0, 0);
-        return actualPaidDate > dueDate; // Was it paid after its due date?
-      }
-      return false; // Paid, but no paid_date to compare, assume on time or not relevant for "days overdue"
+        if (paidDate) {
+            const dueDate = new Date(paymentDate);
+            const actualPaidDate = new Date(paidDate);
+            dueDate.setHours(0,0,0,0);
+            actualPaidDate.setHours(0,0,0,0);
+            return actualPaidDate > dueDate; // Was it paid after its due date?
+        }
+        return false; // Paid, but no paid_date to compare, assume on time or not relevant for "days overdue"
     }
     // For pending/incomplete/vencido, compare payment_date (due date) to today
     const dueDate = new Date(paymentDate);
@@ -71,16 +71,16 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ show, onHide, payment }) =>
 
   const calculateActualDaysOverdue = (paymentDate: string, paidDate?: string | null, status?: string): number => {
     if (status === 'Completado' || status === 'Pagado') {
-      if (paidDate) {
-        const dueDate = new Date(paymentDate);
-        const actualPaidDate = new Date(paidDate);
-        dueDate.setHours(0, 0, 0, 0);
-        actualPaidDate.setHours(0, 0, 0, 0);
-        if (actualPaidDate > dueDate) {
-          return Math.floor((actualPaidDate.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
+        if (paidDate) {
+            const dueDate = new Date(paymentDate);
+            const actualPaidDate = new Date(paidDate);
+            dueDate.setHours(0,0,0,0);
+            actualPaidDate.setHours(0,0,0,0);
+            if (actualPaidDate > dueDate) {
+                return Math.floor((actualPaidDate.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
+            }
         }
-      }
-      return 0; // Not overdue or paid on time
+        return 0; // Not overdue or paid on time
     }
 
     // For pending/incomplete/vencido payments
@@ -91,8 +91,12 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ show, onHide, payment }) =>
     if (today <= dueDate) return 0;
     return Math.floor((today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
   };
-
-  const prestamoLabel = payment.prestamo_label;
+  
+  const prestamoLabel = typeof payment.prestamo === 'object' && payment.prestamo !== null 
+    ? (payment.prestamo as Prestamo).label // Type assertion
+    : typeof payment.prestamo === 'string' 
+    ? payment.prestamo // If it's a string (ID), display it or fetch details
+    : 'N/A';
 
   const paymentStatusText = () => {
     if (payment.paid_date) {
@@ -137,17 +141,19 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ show, onHide, payment }) =>
               <div className="mb-2">
                 <strong>Cuota (Nombre/ID):</strong> {payment.label || 'N/A'}
               </div>
-
+              <div className="mb-2">
+                <strong>Número de Cuota:</strong> {payment.installment_number}
+              </div>
               <div className="mb-2">
                 <strong>Referencia del Pago:</strong> {payment.reference || 'N/A'}
               </div>
               <div className="mb-2">
                 <strong>Método de Pago:</strong> {payment.payment_method || 'N/A'}
               </div>
-
-              <hr className="my-3" />
+              
+              <hr className="my-3"/>
               <h6 className="text-muted">Estado y Fechas</h6>
-              <div className="mb-2">
+               <div className="mb-2">
                 <strong>Estado General de la Cuota:</strong>{' '}
                 <Badge bg={getBadgeVariant(payment.status)}>
                   {payment.status}
@@ -160,7 +166,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ show, onHide, payment }) =>
               <div className="mb-2">
                 <strong>Estado Detallado:</strong>{' '}
                 <Badge bg={paymentStatusBadgeVariant()}>
-                  {paymentStatusText()}
+                    {paymentStatusText()}
                 </Badge>
               </div>
               {isPaymentActuallyLate(payment.payment_date, payment.paid_date, payment.status) && (
@@ -169,7 +175,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ show, onHide, payment }) =>
                   {calculateActualDaysOverdue(payment.payment_date, payment.paid_date, payment.status)} días
                 </div>
               )}
-              <div className="mb-2">
+               <div className="mb-2">
                 <strong>Registrado el:</strong>{' '}
                 {formatDate(payment.created_at)}
               </div>
@@ -198,18 +204,17 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ show, onHide, payment }) =>
                   </div>
                 </>
               )}
-              {(payment.status === 'Completado' || payment.status === 'Pagado') && payment.paid_date && (
-                <div className="mb-2">
-                  <strong>Monto Efectivamente Pagado:</strong>{' '}
-                  <span className="text-success fw-bold">{formatCurrency(payment.amount)}</span>
-                </div>
-              )}
-
-              <hr className="my-3" />
+               {(payment.status === 'Completado' || payment.status === 'Pagado') && payment.paid_date && (
+                 <div className="mb-2">
+                    <strong>Monto Efectivamente Pagado:</strong>{' '}
+                    <span className="text-success fw-bold">{formatCurrency(payment.amount)}</span>
+                  </div>
+               )}
+              
+              <hr className="my-3"/>
               <h6 className="text-muted">Comentarios</h6>
               <div className="mb-2">
-                {/* <strong>Notas:</strong> {payment.notes || 'Sin notas'} */}
-                Sin comentarios
+                <strong>Notas:</strong> {payment.notes || 'Sin notas'}
               </div>
             </Col>
           </Row>

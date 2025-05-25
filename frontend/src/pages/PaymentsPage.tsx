@@ -166,7 +166,7 @@ const PaymentsPage: React.FC = () => {
     <div>
       <h1 className="mb-4">Mis Pagos</h1>
       
-      {/* <Tabs
+      <Tabs
         activeKey={activeTab}
         onSelect={(k) => k && setActiveTab(k)}
         className="mb-4"
@@ -287,8 +287,7 @@ const PaymentsPage: React.FC = () => {
             </>
           )}
         </Tab>
-      </Tabs> */}
-      <p>Pagina no disponible por el momento...</p>
+      </Tabs>
     </div>
   );
 };

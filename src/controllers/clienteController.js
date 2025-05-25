@@ -89,12 +89,8 @@ export const getResumenCliente = async (req, res) => {
     , 0);
     const totalPagado = totalPrestado - totalPendiente;
  
-   const pagos = prestamos.flatMap(prestamo => prestamo.payments.map(pago => ({
-    ...pago,
-    prestamo_label: prestamo.label
-  })))
    
-  console.log(pagos)
+   
     // Crear resumen
     const resumen = {
       cliente: {
@@ -115,7 +111,7 @@ export const getResumenCliente = async (req, res) => {
         totalPagado,
         totalPendiente
       },
-      pagosRecientes: pagos
+      pagosRecientes: prestamos.flatMap(prestamo => prestamo.payments)
     };
     
     res.json(resumen);

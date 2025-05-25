@@ -2,11 +2,6 @@ import mongoose from 'mongoose'
 import bcrypt from 'bcrypt'
 
 const userSchema = new mongoose.Schema({
-    sqlite_id: {
-        type: String, // Or Number, depending on your SQLite ID type
-        unique: true,
-        sparse: true
-    },
     username: String,
     email: String,
     password: String,
