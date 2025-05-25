@@ -33,15 +33,18 @@ const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="auth-container">
-      <Container className="auth-form-container">
-        <div className="auth-logo">
-          <h1>PrestaWeb</h1>
+    <div 
+      className="min-vh-100 d-flex flex-column justify-content-center align-items-center bg-light"
+    >
+      <Container className="auth-form-container" style={{ maxWidth: '450px', width: '100%' }}>
+        <div className="text-center mb-4">
+          {/* Consider adding an <img> tag here if you have a graphical logo */}
+          <h1 className="fw-bold" style={{ fontSize: '2.5rem', color: '#0056b3' }}>PrestaWeb</h1>
           <p className="text-muted">Sistema de Gestión de Préstamos</p>
         </div>
         
-        <Card>
-          <Card.Body>
+        <Card className="shadow-sm">
+          <Card.Body className="p-4">
             <h2 className="text-center mb-4">Iniciar Sesión</h2>
             
             {error && (

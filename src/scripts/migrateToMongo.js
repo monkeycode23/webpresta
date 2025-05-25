@@ -5,7 +5,8 @@ import dotenv from 'dotenv';
 import Cliente from '../models/cliente.js';
 import Prestamo from '../models/prestamo.js';
 import Pago from '../models/pago.js';
-import { generateAccessCode } from './generate_access_codes.cjs';
+//import User from '../models/user.js';
+//import { generateAccessCode } from './generate_access_codes.cjs';
 // Cargar variables de entorno
 dotenv.config();
 
@@ -77,6 +78,7 @@ async function migrateData() {
     await Cliente.deleteMany({});
     await Prestamo.deleteMany({});
     await Pago.deleteMany({});
+    //await User.deleteMany({});
     console.log('Colecciones limpiadas');
 
     // Conectar a SQLite
@@ -97,18 +99,25 @@ async function migrateData() {
     console.log(`Encontrados ${clients.length} clientes para migrar`);
 
     for (const [i, client] of clients.entries()) {
-      // Generar un codigoAcceso único si no existe
-      let codigoAcceso = client.codigoAcceso || client.access_code || client.nickname || `CL${i + 1}`;
-      // Asegurarse de que sea string y único
-      codigoAcceso = String(codigoAcceso) + '_' + (i + 1);
+      let codigoAcceso;
+      let isUnique = false;
+      while (!isUnique) {
+        codigoAcceso = String(Math.floor(10000 + Math.random() * 90000));
+        const existingClient = await Cliente.findOne({ codigoAcceso });
+        if (!existingClient) {
+          isUnique = true;
+        }
+      }
+
       const cliente = new Cliente({
+        sqlite_id: String(client.id),
         nickname: safe(client.nickname, ''),
         name: safe(client.name, ''),
         lastname: safe(client.lastname, ''),
         email: safe(client.email, ''),
         phone: safe(client.phone, ''),
         address: safe(client.address, ''),
-        status: safe(client.status, 'activo'),
+        status: (client.status && String(client.status).trim() !== '') ? String(client.status).trim() : 'activo',
         gender: safe(client.gender, ''),
         birthdate: safe(client.birthdate, ''),
         document_id: safe(client.document_id, 0),
@@ -131,6 +140,7 @@ async function migrateData() {
     for (const loan of loans) {
       const installmentNumber = safe(loan.installment_number, 1);
       const prestamo = new Prestamo({
+        sqlite_id: String(loan.id),
         label: safe(loan.label, ''),
         client_id: idMap.clients.get(loan.client_id),
         amount: safe(loan.amount, 0),
@@ -173,6 +183,7 @@ async function migrateData() {
     for (const payment of payments) {
       const installmentNumber = safe(payment.installment_number, 1);
       const pago = new Pago({
+        sqlite_id: String(payment.id),
         label: safe(payment.label, ''),
         loan_id: idMap.loans.get(payment.loan_id),
         gain: safe(payment.gain, 0),

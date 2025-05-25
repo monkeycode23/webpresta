@@ -51,6 +51,7 @@ export interface Pago {
   status: string;
   comments?: string;
   label?: string;
+  prestamo_label?: string;
 }
 
 export interface ResumenCliente {
