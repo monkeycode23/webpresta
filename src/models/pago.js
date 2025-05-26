@@ -127,7 +127,9 @@ pagoSchema.post('save', async function() {
       if (prestamo.total_amount <= prestamo.total_paid) {
         prestamo.status = 'Pagado';
       }
-      
+      // Ensure remaining_amount doesn't go below zero
+      prestamo.remaining_amount = Math.max(0, prestamo.total_amount - prestamo.total_paid);
+
       await prestamo.save();
     }
   } catch (error) {

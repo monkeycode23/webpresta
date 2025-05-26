@@ -49,7 +49,7 @@ app.use('/api/prestamos', prestamoRoutes)
 app.use('/api/pagos', pagoRoutes)
 
 // Servir archivos estáticos de React en producción
-if (process.env.NODE_ENV != 'production') {
+if (process.env.NODE_ENV == 'production') {
   // Ruta a los archivos estáticos del build de React
   const staticPath = path.resolve(__dirname, '../frontend/build')
   

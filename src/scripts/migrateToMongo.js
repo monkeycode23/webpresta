@@ -218,7 +218,7 @@ async function migrateData() {
             $inc: { total_paid: safe(payment.amount, 0) },
             $set: { 
               last_payment_date: payment.payment_date || new Date(),
-              remaining_amount: safe(payment.remaining_amount, (safe(currentLoanForPayment.total_amount,0) - (safe(currentLoanForPayment.total_paid,0) + safe(payment.amount,0)))) 
+              remaining_amount: Math.max(0, safe(payment.remaining_amount, (safe(currentLoanForPayment.total_amount,0) - (safe(currentLoanForPayment.total_paid,0) + safe(payment.amount,0))))) 
             }
           }
         );
