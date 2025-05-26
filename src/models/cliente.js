@@ -2,6 +2,11 @@ import mongoose from 'mongoose';
 import bcrypt from 'bcrypt';
 
 const clienteSchema = new mongoose.Schema({
+  sqlite_id: {
+    type: String, // Or Number, depending on your SQLite ID type
+    unique: true,
+    sparse: true // Allows multiple documents to have no sqlite_id
+  },
   nickname: {
     type: String,
     required: true,
@@ -30,6 +35,7 @@ const clienteSchema = new mongoose.Schema({
   },
   status: {
     type: String,
+    enum: ['activo', 'inactivo', 'pendiente', 'bloqueado'], // Added enum for valid statuses
     default: 'activo'
   },
   gender: {

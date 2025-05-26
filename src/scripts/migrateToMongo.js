@@ -5,7 +5,8 @@ import dotenv from 'dotenv';
 import Cliente from '../models/cliente.js';
 import Prestamo from '../models/prestamo.js';
 import Pago from '../models/pago.js';
-import { generateAccessCode } from './generate_access_codes.cjs';
+//import User from '../models/user.js';
+//import { generateAccessCode } from './generate_access_codes.cjs';
 // Cargar variables de entorno
 dotenv.config();
 
@@ -77,6 +78,7 @@ async function migrateData() {
     await Cliente.deleteMany({});
     await Prestamo.deleteMany({});
     await Pago.deleteMany({});
+    //await User.deleteMany({});
     console.log('Colecciones limpiadas');
 
     // Conectar a SQLite
@@ -97,18 +99,25 @@ async function migrateData() {
     console.log(`Encontrados ${clients.length} clientes para migrar`);
 
     for (const [i, client] of clients.entries()) {
-      // Generar un codigoAcceso único si no existe
-      let codigoAcceso = client.codigoAcceso || client.access_code || client.nickname || `CL${i + 1}`;
-      // Asegurarse de que sea string y único
-      codigoAcceso = String(codigoAcceso) + '_' + (i + 1);
+      let codigoAcceso;
+      let isUnique = false;
+      while (!isUnique) {
+        codigoAcceso = String(Math.floor(10000 + Math.random() * 90000));
+        const existingClient = await Cliente.findOne({ codigoAcceso });
+        if (!existingClient) {
+          isUnique = true;
+        }
+      }
+
       const cliente = new Cliente({
+        sqlite_id: String(client.id),
         nickname: safe(client.nickname, ''),
         name: safe(client.name, ''),
         lastname: safe(client.lastname, ''),
         email: safe(client.email, ''),
         phone: safe(client.phone, ''),
         address: safe(client.address, ''),
-        status: safe(client.status, 'activo'),
+        status: (client.status && String(client.status).trim() !== '') ? String(client.status).trim() : 'activo',
         gender: safe(client.gender, ''),
         birthdate: safe(client.birthdate, ''),
         document_id: safe(client.document_id, 0),
@@ -131,6 +140,7 @@ async function migrateData() {
     for (const loan of loans) {
       const installmentNumber = safe(loan.installment_number, 1);
       const prestamo = new Prestamo({
+        sqlite_id: String(loan.id),
         label: safe(loan.label, ''),
         client_id: idMap.clients.get(loan.client_id),
         amount: safe(loan.amount, 0),
@@ -173,6 +183,7 @@ async function migrateData() {
     for (const payment of payments) {
       const installmentNumber = safe(payment.installment_number, 1);
       const pago = new Pago({
+        sqlite_id: String(payment.id),
         label: safe(payment.label, ''),
         loan_id: idMap.loans.get(payment.loan_id),
         gain: safe(payment.gain, 0),
@@ -197,19 +208,43 @@ async function migrateData() {
       const savedPago = await pago.save();
 
       // Actualizar el préstamo con la referencia al pago
-      await Prestamo.findByIdAndUpdate(
-        idMap.loans.get(payment.loan_id),
-        { 
-          $addToSet: { payments: savedPago._id },
-          $inc: { total_paid: payment.amount || 0 },
-          $set: { 
-            last_payment_date: payment.payment_date || new Date(),
-            remaining_amount: payment.remaining_amount || 0
+      const currentLoanForPayment = await Prestamo.findById(idMap.loans.get(payment.loan_id));
+
+      if (currentLoanForPayment) {
+        await Prestamo.findByIdAndUpdate(
+          idMap.loans.get(payment.loan_id),
+          { 
+            $addToSet: { payments: savedPago._id },
+            $inc: { total_paid: safe(payment.amount, 0) },
+            $set: { 
+              last_payment_date: payment.payment_date || new Date(),
+              remaining_amount: safe(payment.remaining_amount, (safe(currentLoanForPayment.total_amount,0) - (safe(currentLoanForPayment.total_paid,0) + safe(payment.amount,0)))) 
+            }
           }
-        }
-      );
+        );
+      } else {
+        console.warn(`Préstamo con ID de SQLite ${payment.loan_id} no encontrado en MongoDB para el pago ${payment.id}. No se actualizó el préstamo.`);
+      }
     }
     console.log('Pagos migrados exitosamente');
+
+    // Aquí puedes agregar la migración de Usuarios si es necesario
+    // const users = await db.all('SELECT * FROM users'); // O el nombre de tu tabla de usuarios en SQLite
+    // console.log(`Encontrados ${users.length} usuarios para migrar`);
+    // for (const user of users) {
+    //   const newUser = new User({
+    //     sqlite_id: String(user.id), // Asume que la PK en SQLite es 'id'
+    //     username: safe(user.username, ''),
+    //     email: safe(user.email, ''),
+    //     // Mapea otros campos necesarios
+    //     // No migres contraseñas directamente si están hasheadas de forma diferente
+    //     // Considera establecer una contraseña temporal o nula y forzar el reseteo
+    //     created_at: user.created_at,
+    //     updated_at: user.updated_at
+    //   });
+    //   await newUser.save();
+    // }
+    // console.log('Usuarios migrados exitosamente');
 
     // Cerrar conexiones
     await db.close();
@@ -218,6 +253,9 @@ async function migrateData() {
 
   } catch (error) {
     console.error('Error durante la migración:', error);
+    if (mongoose.connection.readyState === 1) { // 1 === connected
+      await mongoose.connection.close();
+    }
     process.exit(1);
   }
 }

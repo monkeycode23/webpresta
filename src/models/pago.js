@@ -1,6 +1,11 @@
 import mongoose from 'mongoose';
 
 const pagoSchema = new mongoose.Schema({
+  sqlite_id: {
+    type: String, // Or Number, depending on your SQLite ID type
+    unique: true,
+    sparse: true
+  },
   label: {
     type: String,
     trim: true
@@ -36,8 +41,8 @@ const pagoSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ["pending","expired","paid","failed","refunded","canceled"],
-    default: "pending"
+    enum: ['Pendiente', 'Procesando', 'Completado', 'Reembolsado', 'Fallido', 'Cancelado'], // Aligned with pagoStatusMap
+    default: 'Pendiente' // Aligned with pagoStatusMap default
   },
   paid_date: {
     type: Date 

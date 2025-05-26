@@ -1,6 +1,11 @@
 import mongoose from 'mongoose';
 
 const prestamoSchema = new mongoose.Schema({
+  sqlite_id: {
+    type: String, // Or Number, depending on your SQLite ID type
+    unique: true,
+    sparse: true
+  },
   label: {
     type: String,
     trim: true
