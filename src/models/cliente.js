@@ -27,11 +27,11 @@ const clienteSchema = new mongoose.Schema({
   },
   phone: {
     type: String,
-    trim: true
+    //trim: true
   },
   address: {
     type: String,
-    trim: true
+    //trim: true
   },
   status: {
     type: String,
@@ -51,9 +51,11 @@ const clienteSchema = new mongoose.Schema({
   },
   cbu: {
     type: String,
-    trim: true
+    trim: true,
+    unique: true,
+    sparse: true
   },
-  alias: {
+  aliasCbu: {
     type: String,
     trim: true
   },

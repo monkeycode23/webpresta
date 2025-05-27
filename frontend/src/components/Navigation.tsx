@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 const Navigation: React.FC = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-
+  
   const handleLogout = () => {
     logout();
     navigate('/login');
@@ -22,11 +22,12 @@ const Navigation: React.FC = () => {
             <Nav.Link as={NavLink} to="/dashboard">Inicio</Nav.Link>
             <Nav.Link as={NavLink} to="/loans">Mis Préstamos</Nav.Link>
             {/* <Nav.Link as={NavLink} to="/payments">Mis Pagos</Nav.Link> */}
+            <Nav.Link as={NavLink} to="/profile">Mi Perfil</Nav.Link>
           </Nav>
           <Nav>
             {user && (
               <Navbar.Text className="me-3">
-                Hola, {user.nombre} {user.apellido}
+                Hola, {user.nickname}{user.name} {user.lastname}
               </Navbar.Text>
             )}
             <Button variant="outline-light" onClick={handleLogout}>

@@ -48,13 +48,7 @@ router.post('/login', async (req, res) => {
     // Devolver datos del cliente y token
     res.json({
       token,
-      cliente: {
-        id: cliente._id,
-        nombre: cliente.nombre,
-        apellido: cliente.apellido,
-        email: cliente.email,
-        codigoAcceso: cliente.codigoAcceso
-      }
+      cliente
     });
   } catch (error) {
     console.error('Error en login:', error);

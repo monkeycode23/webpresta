@@ -1,14 +1,19 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import axios from 'axios';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:4000/api';
 
 interface Cliente {
   id: string;
-  nombre: string;
-  apellido: string;
+  nickname?: string;
+  name: string;
+  lastname: string;
   email: string;
   codigoAcceso: string;
+  phone?: string;
+  address?: string;
+  cbu?: string;
+  aliasCbu?: string;
 }
 
 interface AuthState {
@@ -34,6 +39,7 @@ export const login = createAsyncThunk(
       const response = await axios.post(`${API_BASE_URL}/auth/login`, { codigoAcceso });
       const { token, cliente } = response.data;
       
+      console.log(response.data)
       // Guardar token en localStorage
       localStorage.setItem('authToken', token);
       
@@ -83,6 +89,11 @@ const authSlice = createSlice({
     clearError: (state) => {
       state.error = null;
     },
+    updateUserProfileInSlice: (state, action: PayloadAction<Cliente>) => {
+      if (state.user && action.payload) {
+        state.user = { ...state.user, ...action.payload };
+      }
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -119,5 +130,5 @@ const authSlice = createSlice({
   },
 });
 
-export const { logout, clearError } = authSlice.actions;
+export const { logout, clearError, updateUserProfileInSlice } = authSlice.actions;
 export default authSlice.reducer; 

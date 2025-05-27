@@ -7,7 +7,8 @@ import {
   getClienteByDocumento,
   createCliente,
   updateCliente,
-  deleteCliente
+  deleteCliente,
+  updateClienteProfile
 } from '../controllers/clienteController.js';
 import { verificarToken, verificarPropietario } from '../middleware/authMiddleware.js';
 
@@ -17,6 +18,7 @@ const router = Router();
 router.post('/', createCliente);
 
 // Rutas protegidas
+router.put('/profile', verificarToken, updateClienteProfile);
 router.get('/:clienteId', [verificarToken, verificarPropietario], getClienteById);
 router.put('/:clienteId', [verificarToken, verificarPropietario], updateCliente);
 router.delete('/:clienteId', [verificarToken, verificarPropietario], deleteCliente);

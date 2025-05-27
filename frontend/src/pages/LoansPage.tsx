@@ -18,7 +18,7 @@ const LoansPage: React.FC = () => {
       
       try {
         setIsLoading(true);
-        const data = await apiService.getPrestamosCliente(user.id);
+        const data = await apiService.getPrestamosCliente(user._id);
         setPrestamos(data);
         
         // Calculate totals for each loan

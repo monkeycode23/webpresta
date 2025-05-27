@@ -97,8 +97,10 @@ async function migrateData() {
     // Migrar Clientes
     const clients = await db.all('SELECT * FROM clients');
     console.log(`Encontrados ${clients.length} clientes para migrar`);
+    console.log('Iniciando migración de clientes...');
 
     for (const [i, client] of clients.entries()) {
+      console.log(`Migrando cliente ${i + 1} de ${clients.length} (ID SQLite: ${client.id})`);
       let codigoAcceso;
       let isUnique = false;
       while (!isUnique) {
@@ -109,7 +111,7 @@ async function migrateData() {
         }
       }
 
-      const cliente = new Cliente({
+      const clienteData = {
         sqlite_id: String(client.id),
         nickname: safe(client.nickname, ''),
         name: safe(client.name, ''),
@@ -121,23 +123,31 @@ async function migrateData() {
         gender: safe(client.gender, ''),
         birthdate: safe(client.birthdate, ''),
         document_id: safe(client.document_id, 0),
-        cbu: safe(client.cbu, ''),
         alias: safe(client.alias, ''),
         codigoAcceso,
         loans: [],
         created_at: client.created_at,
         updated_at: client.updated_at
-      });
+      };
+
+      if (client.cbu && String(client.cbu).trim() !== '') {
+        clienteData.cbu = String(client.cbu).trim();
+      }
+
+      const cliente = new Cliente(clienteData);
       const savedCliente = await cliente.save();
       idMap.clients.set(client.id, savedCliente._id);
+      console.log(`Cliente ${savedCliente.nickname} (ID MongoDB: ${savedCliente._id}) migrado exitosamente.`);
     }
     console.log('Clientes migrados exitosamente');
 
     // Migrar Préstamos
     const loans = await db.all('SELECT * FROM loans');
     console.log(`Encontrados ${loans.length} préstamos para migrar`);
+    console.log('Iniciando migración de préstamos...');
 
-    for (const loan of loans) {
+    for (const [i, loan] of loans.entries()) {
+      console.log(`Migrando préstamo ${i + 1} de ${loans.length} (ID SQLite: ${loan.id})`);
       const installmentNumber = safe(loan.installment_number, 1);
       const prestamo = new Prestamo({
         sqlite_id: String(loan.id),
@@ -163,12 +173,14 @@ async function migrateData() {
         notes: safe(loan.notes, ''),
         payments: [],
         created_at: loan.created_at,
-        updated_at: loan.updated_at
+        updated_at: loan.updated_at,
       });
       const savedPrestamo = await prestamo.save();
       idMap.loans.set(loan.id, savedPrestamo._id);
+      console.log(`Préstamo ${savedPrestamo.label} (ID MongoDB: ${savedPrestamo._id}) migrado exitosamente.`);
 
       // Actualizar el cliente con la referencia al préstamo
+      console.log(`Actualizando cliente ${idMap.clients.get(loan.client_id)} con préstamo ${savedPrestamo._id}`);
       await Cliente.findByIdAndUpdate(
         idMap.clients.get(loan.client_id),
         { $push: { loans: savedPrestamo._id } }
@@ -179,8 +191,10 @@ async function migrateData() {
     // Migrar Pagos
     const payments = await db.all('SELECT * FROM payments');
     console.log(`Encontrados ${payments.length} pagos para migrar`);
+    console.log('Iniciando migración de pagos...');
 
-    for (const payment of payments) {
+    for (const [i, payment] of payments.entries()) {
+      console.log(`Migrando pago ${i + 1} de ${payments.length} (ID SQLite: ${payment.id})`);
       const installmentNumber = safe(payment.installment_number, 1);
       const pago = new Pago({
         sqlite_id: String(payment.id),
@@ -206,9 +220,11 @@ async function migrateData() {
         updated_at: payment.updated_at
       });
       const savedPago = await pago.save();
+      console.log(`Pago ${savedPago.label || savedPago._id} (ID MongoDB: ${savedPago._id}) migrado exitosamente.`);
 
       // Actualizar el préstamo con la referencia al pago
       const currentLoanForPayment = await Prestamo.findById(idMap.loans.get(payment.loan_id));
+      console.log(`Actualizando préstamo ${idMap.loans.get(payment.loan_id)} con pago ${savedPago._id}`);
 
       if (currentLoanForPayment) {
         await Prestamo.findByIdAndUpdate(
@@ -247,16 +263,17 @@ async function migrateData() {
     // console.log('Usuarios migrados exitosamente');
 
     // Cerrar conexiones
+    console.log('Cerrando conexión con SQLite...');
     await db.close();
-    await mongoose.connection.close();
-    console.log('Migración completada exitosamente');
+    console.log('Conexión con SQLite cerrada.');
+    console.log('Cerrando conexión con MongoDB...');
+    await mongoose.disconnect();
+    console.log('Conexión con MongoDB cerrada.');
+    console.log('Migración de datos completada exitosamente!');
 
   } catch (error) {
     console.error('Error durante la migración:', error);
-    if (mongoose.connection.readyState === 1) { // 1 === connected
-      await mongoose.connection.close();
-    }
-    process.exit(1);
+    process.exit(1); // Salir con código de error
   }
 }
 

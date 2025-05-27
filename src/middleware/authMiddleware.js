@@ -56,6 +56,7 @@ export const verificarToken = async (req, res, next) => {
 export const verificarPropietario = (req, res, next) => {
   try {
     const clienteIdParam = req.params.clienteId;
+    console.log(req.params)
     const clienteIdAuth = req.clienteId.toString();
     
     if (clienteIdParam !== clienteIdAuth) {

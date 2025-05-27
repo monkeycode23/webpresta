@@ -93,13 +93,7 @@ export const getResumenCliente = async (req, res) => {
    
     // Crear resumen
     const resumen = {
-      cliente: {
-        id: cliente._id,
-        nickname:cliente.nickname,
-        nombre: cliente.nickname,
-        apellido: cliente.apellido,
-        email: cliente.email
-      },
+      cliente,
       prestamos: {
         prestamos: prestamos,
         total: totalPrestamos,
@@ -180,6 +174,54 @@ export const updateCliente = async (req, res) => {
   } catch (error) {
     console.error('Error al actualizar cliente:', error);
     res.status(500).json({ mensaje: 'Error del servidor' });
+  }
+};
+
+// Actualizar perfil del cliente autenticado
+export const updateClienteProfile = async (req, res) => {
+  try {
+    const clienteId = req.clienteId; // Obtenido del token JWT
+    const { nombre, apellido, telefono,email, direccion, cbu, aliasCbu } = req.body;
+
+    console.log(req.body)
+    const updateData = {
+      name: nombre,
+      lastname: apellido,
+      email,
+      phone: telefono,
+      address: direccion,
+      cbu,
+      aliasCbu,
+    };
+
+    // Filtrar campos undefined para no sobrescribir con null
+    Object.keys(updateData).forEach(key => updateData[key] === undefined && delete updateData[key]);
+
+    /* if (cbu) {
+      // Verificar si el CBU ya está en uso por otro cliente
+      const existingCbu = await Cliente.findOne({ cbu: cbu, _id: { $ne: clienteId } });
+      if (existingCbu) {
+        return res.status(400).json({ mensaje: 'El CBU ingresado ya está registrado por otro usuario.' });
+      }
+    } */
+
+    const clienteActualizado = await Cliente.findByIdAndUpdate(
+      clienteId,
+      { $set: updateData },
+      { new: true, runValidators: true, context: 'query' }
+    );
+
+    if (!clienteActualizado) {
+      return res.status(404).json({ mensaje: 'Cliente no encontrado' });
+    }
+
+    res.json({ mensaje: 'Perfil actualizado correctamente', cliente: clienteActualizado });
+  } catch (error) {
+    console.error('Error al actualizar perfil del cliente:', error);
+    if (error.code === 11000 && error.keyPattern && error.keyPattern.cbu) {
+      return res.status(400).json({ mensaje: 'El CBU ingresado ya está en uso.' });
+    }
+    res.status(500).json({ mensaje: 'Error del servidor al actualizar el perfil' });
   }
 };
 

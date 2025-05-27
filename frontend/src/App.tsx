@@ -7,6 +7,8 @@ import DashboardPage from './pages/DashboardPage';
 import LoansPage from './pages/LoansPage';
 import LoanDetailPage from './pages/LoanDetailPage';
 import PaymentsPage from './pages/PaymentsPage';
+import ProfileDisplayPage from './pages/ProfileDisplayPage';
+import ProfilePage from './pages/ProfilePage';
 import NotFoundPage from './pages/NotFoundPage';
 import Layout from './components/Layout';
 
@@ -22,6 +24,8 @@ const App: React.FC = () => {
           <Route path="loans" element={<LoansPage />} />
           <Route path="loans/:loanId" element={<LoanDetailPage />} />
           <Route path="payments" element={<PaymentsPage />} />
+          <Route path="profile" element={<ProfileDisplayPage />} />
+          <Route path="profile/edit" element={<ProfilePage />} />
         </Route>
         
         <Route path="*" element={<NotFoundPage />} />

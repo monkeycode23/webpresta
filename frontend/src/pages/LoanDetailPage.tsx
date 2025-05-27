@@ -225,7 +225,9 @@ const LoanDetailPage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {detallePrestamo.pagos.filter(pago => pago.status === 'Pendiente').map((cuota, index) => (
+                  {detallePrestamo.pagos.filter(pago => pago.status === 'Pendiente'|| 
+                  pago.status === 'Incompleto'
+                  ).map((cuota, index) => (
                     <tr key={index}  onClick={() => handlePaymentClick(cuota)}  style={{cursor: 'pointer'}}>
                       <td>{cuota.label}</td>
                       <td>{formatDateForTable(cuota.payment_date)}</td>

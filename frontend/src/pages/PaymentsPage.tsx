@@ -28,7 +28,7 @@ const PaymentsPage: React.FC = () => {
       
       try {
         setLoadingPendientes(true);
-        const data = await apiService.getPagosPendientes(user.id);
+        const data = await apiService.getPagosPendientes(user._id);
         console.log("data", data);
         setPagosPendientes(data);
         setErrorPendientes(null);
@@ -54,7 +54,7 @@ const PaymentsPage: React.FC = () => {
       
       try {
         setLoadingHistorial(true);
-        const data = await apiService.getHistorialPagos(user.id, currentPage, limit);
+        const data = await apiService.getHistorialPagos(user._id, currentPage, limit);
         setHistorialPagos(data);
         setErrorHistorial(null);
       } catch (err: any) {

@@ -19,7 +19,8 @@ const DashboardPage: React.FC = () => {
       
       setIsLoading(true);
       try {
-        const data = await apiService.getResumenCliente(user.id);
+        console.log(user)
+        const data = await apiService.getResumenCliente(user._id);
         console.log(data);
         setResumen(data);
         setError(null);

@@ -2,11 +2,16 @@ import axios from 'axios';
 
 // Definición de tipos
 export interface Cliente {
-  id: string;
-  nombre: string;
-  apellido: string;
+  _id: string;
+  nickname: string;
+  name: string;
+  lastname: string;
   email: string;
   codigoAcceso: string;
+  phone?: string;
+  address?: string;
+  cbu?: string;
+  aliasCbu?: string;
 }
 
 export interface Prestamo {
@@ -124,7 +129,7 @@ export interface PagosHistorialResponse {
 }
 
 // Configuración de axios
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:4000/api';
+const API_BASE_URL = /* process.env.REACT_APP_API_URL || */ 'http://localhost:4000/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -163,6 +168,11 @@ const apiService = {
   // Clientes
   getCliente: async (clienteId: string) => {
     const response = await api.get(`/clientes/${clienteId}`);
+    return response.data;
+  },
+  
+  updateProfile: async (profileData: Partial<Cliente>) => {
+    const response = await api.put('/clientes/profile', profileData);
     return response.data;
   },
   
