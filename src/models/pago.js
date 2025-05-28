@@ -41,8 +41,9 @@ const pagoSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['Pendiente', 'Procesando', 'Completado', 'Reembolsado', 'Fallido', 'Cancelado'], // Aligned with pagoStatusMap
-    default: 'Pendiente' // Aligned with pagoStatusMap default
+    enum: ['pending','expired','incomplete','paid',
+      'Pendiente', 'Procesando', 'Completado', 'Reembolsado', 'Fallido', 'Cancelado'], // Aligned with pagoStatusMap
+    default: 'pending' // Aligned with pagoStatusMap default
   },
   paid_date: {
     type: Date 
@@ -53,8 +54,10 @@ const pagoSchema = new mongoose.Schema({
   },
   payment_method: {
     type: String,
-    enum: ['Efectivo', 'Transferencia', 'Tarjeta', 'Cheque', 'Mercado Pago', 'Otro'],
-    default: 'Efectivo'
+    enum: [
+      "cash","transfer","credit_card",
+      'Efectivo', 'Transferencia', 'Tarjeta', 'Cheque', 'Mercado Pago', 'Otro'],
+    default: 'cash'
   },
   // Campos adicionales
   installment_number: {

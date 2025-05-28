@@ -54,13 +54,15 @@ const prestamoSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['Pendiente', 'Aprobado', 'Rechazado', 'En curso', 'Pagado', 'Vencido', 'Cancelado'],
-    default: 'Pendiente'
+    enum: ['Pendiente',
+      'active','completed','cancelled','refounded', 'Aprobado', 'Rechazado', 'En curso', 'Pagado', 'Vencido', 'Cancelado'],
+    default: 'active'
   },
   payment_interval: {
     type: String,
-    enum: ['Diario', 'Semanal', 'Quincenal', 'Mensual','Personalizado'],
-    default: 'Mensual'
+    enum: ['daily','weekly','monthly','fortnightly','fortnigt','yearly','custom','fortnight',
+      'Diario', 'Semanal', 'Quincenal', 'Mensual','Personalizado'],
+    default: 'daily'
   },
   // Campos adicionales
   description: {

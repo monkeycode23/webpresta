@@ -52,7 +52,6 @@ const clienteSchema = new mongoose.Schema({
   cbu: {
     type: String,
     trim: true,
-    unique: true,
     sparse: true
   },
   aliasCbu: {
