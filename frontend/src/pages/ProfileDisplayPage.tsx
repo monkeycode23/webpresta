@@ -1,5 +1,5 @@
 import React from 'react';
-import { Container, Row, Col, Card, Button } from 'react-bootstrap';
+// import { Container, Row, Col, Card, Button } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
@@ -8,7 +8,7 @@ const ProfileDisplayPage: React.FC = () => {
   const navigate = useNavigate();
   console.log(user)
   if (!user) {
-    return <p>Cargando perfil...</p>;
+    return <p className="text-center text-gray-600 py-10">Cargando perfil...</p>;
   }
 
   const handleEdit = () => {
@@ -16,26 +16,49 @@ const ProfileDisplayPage: React.FC = () => {
   };
 
   return (
-    <Container className="mt-4">
-      <Row className="justify-content-md-center">
-        <Col md={8}>
-          <Card>
-            <Card.Header as="h2">Mi Perfil</Card.Header>
-            <Card.Body>
-              <Card.Text><strong>Nombre:</strong> {user.name} {user.lastname}</Card.Text>
-              <Card.Text><strong>Email:</strong> {user.email}</Card.Text>
-              <Card.Text><strong>Teléfono:</strong> {user.phone || 'No especificado'}</Card.Text>
-              <Card.Text><strong>Dirección:</strong> {user.address || 'No especificada'}</Card.Text>
-              <Card.Text><strong>CBU:</strong> {user.cbu || 'No especificado'}</Card.Text>
-              <Card.Text><strong>Alias CBU:</strong> {user.aliasCbu || 'No especificado'}</Card.Text>
-              <Button variant="primary" onClick={handleEdit} className="mt-3">
+    <div className="container mx-auto mt-10 px-4">
+      <div className="max-w-2xl mx-auto">
+        <div className="bg-white shadow-xl rounded-lg overflow-hidden">
+          <div className="bg-blue-600 p-4 sm:p-6">
+            <h2 className="text-2xl sm:text-3xl font-bold text-white text-center">Mi Perfil</h2>
+          </div>
+          <div className="p-6 sm:p-8 space-y-4">
+            <div>
+              <p className="text-sm text-gray-500">Nombre</p>
+              <p className="text-lg font-semibold text-gray-800">{user.name} {user.lastname}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Email</p>
+              <p className="text-lg font-semibold text-gray-800">{user.email}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Teléfono</p>
+              <p className="text-lg font-semibold text-gray-800">{user.phone || 'No especificado'}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Dirección</p>
+              <p className="text-lg font-semibold text-gray-800">{user.address || 'No especificada'}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">CBU</p>
+              <p className="text-lg font-semibold text-gray-800">{user.cbu || 'No especificado'}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Alias CBU</p>
+              <p className="text-lg font-semibold text-gray-800">{user.aliasCbu || 'No especificado'}</p>
+            </div>
+            <div className="mt-6 text-center sm:text-right">
+              <button 
+                onClick={handleEdit} 
+                className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-150"
+              >
                 Editar Perfil
-              </Button>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
-    </Container>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
 

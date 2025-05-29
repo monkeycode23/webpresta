@@ -5,7 +5,8 @@ import {
   getPagosPendientesCliente, 
   createPago, 
   updatePago, 
-  deletePago 
+  deletePago, 
+  getFilteredUserPayments 
 } from '../controllers/pagoController.js';
 import { verificarToken, verificarPropietario } from '../middleware/authMiddleware.js';
 
@@ -54,5 +55,9 @@ router.get('/cliente/:clienteId/pendientes', [verificarToken, verificarPropietar
 router.post('/', verificarToken, createPago);
 router.put('/:pagoId', verificarToken, updatePago);
 router.delete('/:pagoId', verificarToken, deletePago);
+
+// Nueva ruta para obtener pagos filtrados del usuario autenticado
+// GET /api/pagos/my-payments?page=1&limit=10&status=pendiente&sortBy=payment_date&sortOrder=desc
+router.get('/my-payments', verificarToken, getFilteredUserPayments);
 
 export default router; 

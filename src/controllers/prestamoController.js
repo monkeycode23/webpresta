@@ -36,12 +36,12 @@ export const getDetallePrestamoConPagos = async (req, res) => {
     
     // Calcular información adicional
     const proximaFechaPago = calcularProximaFechaPago(prestamo, prestamo.payments);
-    const cuotasRestantesProgramadas = pagos.filter(pago => pago.status === 'Pendiente').map(pago => ({
+    const cuotasRestantesProgramadas = pagos.filter(pago => pago.status === 'pending').map(pago => ({
       numeroCuota: pago.label,
       fechaEstimada: pago.payment_date,
       monto: pago.amount,
       status: pago.status,
-      pagada: pago.status === 'Completado'
+      pagada: pago.status === 'paid'
     }));
     //generarCuotasRestantes(prestamo, prestamo.payments);
     console.log(cuotasRestantesProgramadas);
@@ -51,12 +51,12 @@ export const getDetallePrestamoConPagos = async (req, res) => {
       prestamo,
       pagos,
       resumen: {
-        cuotasPagadas: prestamo.payments.filter(pago => pago.status === 'Completado').length,
-        cuotasRestantes: prestamo.installment_number - prestamo.payments.filter(pago => pago.status === 'Completado').length,
-        totalPagado: prestamo.payments.reduce((acc, pago) => pago.status === 'Completado' ? acc + pago.amount : acc, 0),
-        montoRestante: prestamo.total_amount - prestamo.payments.reduce((acc, pago) => pago.status === 'Completado' ? acc + pago.amount : acc, 0),
+        cuotasPagadas: prestamo.payments.filter(pago => pago.status === 'paid').length,
+        cuotasRestantes: prestamo.installment_number - prestamo.payments.filter(pago => pago.status === 'paid').length,
+        totalPagado: prestamo.payments.reduce((acc, pago) => pago.status === 'paid' ? acc + pago.amount : acc, 0),
+        montoRestante: prestamo.total_amount - prestamo.payments.reduce((acc, pago) => pago.status === 'paid' ? acc + pago.amount : acc, 0),
         proximaFechaPago,
-        porcentajePagado: (prestamo.payments.reduce((acc, pago) => pago.status === 'Completado' ? acc + pago.amount : acc, 0) / prestamo.total_amount * 100).toFixed(2)
+        porcentajePagado: (prestamo.payments.reduce((acc, pago) => pago.status === 'paid' ? acc + pago.amount : acc, 0) / prestamo.total_amount * 100).toFixed(2)
       },
       cuotasRestantesProgramadas
     };
@@ -71,7 +71,7 @@ export const getDetallePrestamoConPagos = async (req, res) => {
 // Función para calcular la próxima fecha de pago
 const calcularProximaFechaPago = (prestamo, pagos) => {
 
-  const cuotasRestantes = prestamo.installment_number - prestamo.payments.filter(pago => pago.status === 'completado').length;
+  const cuotasRestantes = prestamo.installment_number - prestamo.payments.filter(pago => pago.status === 'paid').length;
 
   console.log(cuotasRestantes);
  /*  if (prestamo.status === 'Pendiente' || cuotasRestantes <= 0) {
@@ -80,7 +80,7 @@ const calcularProximaFechaPago = (prestamo, pagos) => {
  console.log("pagos",pagos);
   
   const fechaDesembolso = new Date(prestamo.loan_date);
-  const ultimoPago =  pagos.filter(pago => pago.status === 'Pendiente')[0]
+  const ultimoPago =  pagos.filter(pago => pago.status === 'pending')[0]
   console.log("ultimoPago",ultimoPago);
   // Si no hay pagos, la próxima fecha es un mes después del desembolso
  /*  if (!ultimoPago) {
@@ -97,8 +97,8 @@ const calcularProximaFechaPago = (prestamo, pagos) => {
 
 // Función para generar un cronograma de cuotas restantes
 const generarCuotasRestantes = (prestamo, pagos) => {
-  const cuotas = prestamo.installment_number - prestamo.payments.filter(pago => pago.status === 'Completado').length;
-  if (prestamo.status === 'Pagado' || cuotas <= 0) {
+  const cuotas = prestamo.installment_number - prestamo.payments.filter(pago => pago.status === 'paid').length;
+  if (prestamo.status === 'paid' || cuotas <= 0) {
     return [];
   }
   
@@ -113,7 +113,7 @@ const generarCuotasRestantes = (prestamo, pagos) => {
     //fechaCuota.setMonth(fechaCuota.getMonth() + i);
     
     cuotasRestantes.push({
-      numeroCuota: prestamo.payments.filter(pago => pago.status === 'Completado').length + i + 1,
+      numeroCuota: prestamo.payments.filter(pago => pago.status === 'paid').length + i + 1,
       fechaEstimada: ultimoPago.payment_date,
       monto: prestamo.amount,
       pagada: false
@@ -206,32 +206,51 @@ export const updatePrestamo = async (req, res) => {
 // Eliminar préstamo
 export const deletePrestamo = async (req, res) => {
   try {
-    const { id } = req.params;
-    
-    // Verificar si el préstamo tiene pagos
-    const prestamo = await Prestamo.findById(id);
+    const { prestamoId } = req.params;
+
+    const prestamo = await Prestamo.findById(prestamoId);
     if (!prestamo) {
       return res.status(404).json({ mensaje: 'Préstamo no encontrado' });
     }
-    
-    if (prestamo.payments && prestamo.payments.length > 0) {
-      return res.status(400).json({
-        mensaje: 'No se puede eliminar el préstamo porque tiene pagos registrados'
-      });
-    }
-    
-    // Eliminar el préstamo
-    await Prestamo.findByIdAndDelete(id);
-    
-    // Actualizar el cliente eliminando la referencia al préstamo
+
+    // Eliminar pagos asociados al préstamo
+    await Pago.deleteMany({ loan_id: prestamoId });
+
+    // Eliminar el préstamo de la lista de préstamos del cliente
     await Cliente.findByIdAndUpdate(
       prestamo.client_id,
-      { $pull: { loans: id } }
+      { $pull: { loans: prestamoId } }
     );
-    
-    res.json({ mensaje: 'Préstamo eliminado exitosamente' });
+
+    // Eliminar el préstamo
+    await Prestamo.findByIdAndDelete(prestamoId);
+
+    res.json({ mensaje: 'Préstamo y sus pagos asociados eliminados correctamente' });
   } catch (error) {
     console.error('Error al eliminar préstamo:', error);
     res.status(500).json({ mensaje: 'Error del servidor' });
   }
+};
+
+// Nuevo: Obtener préstamos para el filtro de la página de pagos
+export const getLoansForFilter = async (req, res) => {
+    try {
+      console.log("getLoansForFilter")
+        const userId = req.user._id; 
+        const loans = await Prestamo.find({ client_id: userId })
+                                .select('_id label') 
+                                .lean(); 
+        
+        const processedLoans = loans.map(loan => ({
+            _id: loan._id.toString(),
+            label: loan.label || `Préstamo ${loan._id.toString().substring(0,6)}` 
+        }));
+
+        console.log(processedLoans)
+        res.json(processedLoans); 
+
+    } catch (error) {
+        console.error("Error fetching loans for filter:", error);
+        res.status(500).json({ message: "Error al obtener los préstamos para el filtro: " + error.message });
+    }
 }; 

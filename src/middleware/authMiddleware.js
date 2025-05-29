@@ -3,6 +3,15 @@ import Cliente from '../models/cliente.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'prestaweb-secret-key';
 
+
+export const esAdmin = async (req, res, next) => {
+  const user = req.user;
+  if (!user.isAdmin) {
+    return res.status(403).json({ mensaje: 'Acceso denegado. No tienes permisos de administrador.' });
+  }
+  next();
+};
+
 /**
  * Middleware para verificar el token de autenticación
  */

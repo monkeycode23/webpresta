@@ -5,7 +5,8 @@ import {
   getPagosPrestamo,
   createPrestamo,
   updatePrestamo,
-  deletePrestamo
+  deletePrestamo,
+  getLoansForFilter
 } from '../controllers/prestamoController.js';
 import { verificarToken } from '../middleware/authMiddleware.js';
 
@@ -48,5 +49,6 @@ router.put('/:prestamoId', verificarToken, updatePrestamo);
 router.delete('/:prestamoId', verificarToken, deletePrestamo);
 router.get('/:prestamoId/detalle', verificarToken, getDetallePrestamoConPagos);
 router.get('/:prestamoId/pagos', verificarToken, getPagosPrestamo);
+router.get('/for-filter', verificarToken, getLoansForFilter);
 
 export default router; 

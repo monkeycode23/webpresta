@@ -3,7 +3,7 @@ import axios from 'axios';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:4000/api';
 
-interface Cliente {
+export interface Cliente {
   id: string;
   nickname?: string;
   name: string;
@@ -45,6 +45,7 @@ export const login = createAsyncThunk(
       
       // Configurar el token en axios para futuras peticiones
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      console.log(token)
       
       return { token, cliente };
     } catch (error: any) {

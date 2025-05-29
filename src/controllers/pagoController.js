@@ -180,31 +180,111 @@ export const updatePago = async (req, res) => {
 // Eliminar pago
 export const deletePago = async (req, res) => {
   try {
-    const { id } = req.params;
-    
-    const pago = await Pago.findById(id);
+    const { pagoId } = req.params;
+
+    const pago = await Pago.findById(pagoId);
     if (!pago) {
       return res.status(404).json({ mensaje: 'Pago no encontrado' });
     }
-    
-    // Actualizar el préstamo eliminando la referencia al pago y ajustando los montos
+
+    const prestamo = await Prestamo.findById(pago.loan_id);
+    if (!prestamo) {
+      return res.status(404).json({ mensaje: 'Préstamo asociado no encontrado. No se pudo actualizar el préstamo.' });
+    }
+
+    const nuevoTotalPagado = prestamo.total_paid - (pago.amount || 0);
     await Prestamo.findByIdAndUpdate(
       pago.loan_id,
       {
-        $pull: { payments: id },
-        $inc: { total_paid: -(pago.amount || 0) },
+        $pull: { payments: pagoId },
         $set: {
-          remaining_amount: prestamo.total_amount - (prestamo.total_paid - (pago.amount || 0))
+          total_paid: nuevoTotalPagado,
+          remaining_amount: prestamo.total_amount - nuevoTotalPagado,
         }
       }
     );
-    
-    // Eliminar el pago
-    await Pago.findByIdAndDelete(id);
-    
-    res.json({ mensaje: 'Pago eliminado exitosamente' });
+
+    await Pago.findByIdAndDelete(pagoId);
+
+    res.json({ mensaje: 'Pago eliminado exitosamente y préstamo actualizado.' });
   } catch (error) {
     console.error('Error al eliminar pago:', error);
     res.status(500).json({ mensaje: 'Error del servidor' });
   }
+};
+
+// Nuevo: Obtener pagos filtrados, paginados y ordenados para el usuario autenticado
+export const getFilteredUserPayments = async (req, res) => {
+    try {
+        const userId = req.user._id; // ID del usuario autenticado
+        let { 
+            page = 1, 
+            limit = 10, 
+            startDate,
+            endDate,
+            status,
+            loanId,
+            sortBy = 'payment_date', 
+            sortOrder = 'desc' 
+        } = req.query;
+
+        page = parseInt(page) || 1;
+        limit = parseInt(limit) || 10;
+
+        const query = { client_id: userId }; 
+
+        if (startDate) {
+            query.payment_date = { ...query.payment_date, $gte: new Date(startDate) };
+        }
+        if (endDate) {
+            const endOfDay = new Date(endDate);
+            endOfDay.setHours(23, 59, 59, 999);
+            query.payment_date = { ...query.payment_date, $lte: endOfDay };
+        }
+        if (status) {
+            query.status = status;
+        }
+        if (loanId) {
+            query.loan_id = loanId; 
+        }
+
+        const sortOptions = {};
+        if (sortBy && sortOrder) {
+            sortOptions[sortBy] = sortOrder === 'asc' ? 1 : -1;
+        }
+        
+        let paymentsQuery = Pago.find(query)
+            .sort(sortOptions)
+            .skip((page - 1) * limit)
+            .limit(limit);
+
+        paymentsQuery = paymentsQuery.populate({
+            path: 'loan_id',
+            select: 'label amount client_id' // Ajusta según los campos que necesites de Loan
+        }).lean();
+
+        const paymentsData = await paymentsQuery;
+        const totalPayments = await Pago.countDocuments(query);
+        const totalPages = Math.ceil(totalPayments / limit);
+
+        const processedPayments = paymentsData.map(p => {
+            const paymentResult = {
+                ...p,
+                loan_id: p.loan_id && p.loan_id._id ? p.loan_id._id.toString() : (p.loan_id ? p.loan_id.toString() : undefined),
+                loan_label: p.loan_id && p.loan_id.label ? p.loan_id.label : (p.loan_label || 'N/A'),
+            };
+            return paymentResult;
+        });
+
+        res.json({ 
+            payments: processedPayments,
+            currentPage: page,
+            totalPages,
+            totalItems: totalPayments
+        });
+
+    } catch (error) {
+        console.error("Error fetching filtered payments:", error);
+        res.status(500).json({ message: "Error al obtener los pagos: " + error.message });
+    }
 }; 

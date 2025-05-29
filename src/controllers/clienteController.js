@@ -85,7 +85,7 @@ export const getResumenCliente = async (req, res) => {
     const totalPrestado = prestamos.reduce((sum, prestamo) => sum + prestamo.amount, 0);
     //console.log(totalPagado);
     const totalPendiente = prestamos.reduce((sum, prestamo) => sum + 
-    prestamo.payments.filter(pago => pago.status !== 'Completado').reduce((sum, pago) => sum + pago.amount, 0)
+    prestamo.payments.filter(pago => pago.status !== 'paid').reduce((sum, pago) => sum + pago.amount, 0)
     , 0);
     const totalPagado = totalPrestado - totalPendiente;
  
@@ -97,8 +97,8 @@ export const getResumenCliente = async (req, res) => {
       prestamos: {
         prestamos: prestamos,
         total: totalPrestamos,
-        activos: prestamos.filter(p => p.status !== 'Pagado').length,
-        pagados: prestamos.filter(p => p.status === 'Pagado').length
+        activos: prestamos.filter(p => p.status !== 'completed').length,
+        pagados: prestamos.filter(p => p.status === 'completed').length
       },
       montos: {
         totalPrestado,
@@ -228,27 +228,25 @@ export const updateClienteProfile = async (req, res) => {
 // Eliminar cliente
 export const deleteCliente = async (req, res) => {
   try {
-    const { id } = req.params;
-    
-    // Verificar si el cliente tiene préstamos activos
-    const prestamosActivos = await Prestamo.find({
-      client_id: id,
-      status: { $in: ['En curso', 'Aprobado'] }
-    });
-    
-    if (prestamosActivos.length > 0) {
-      return res.status(400).json({
-        mensaje: 'No se puede eliminar el cliente porque tiene préstamos activos'
-      });
+    const { clienteId } = req.params; // Cambiado de id a clienteId para consistencia
+
+    // Encontrar y eliminar pagos y préstamos asociados al cliente
+    const prestamos = await Prestamo.find({ client_id: clienteId });
+    for (const prestamo of prestamos) {
+      // Eliminar pagos asociados al préstamo
+      await Pago.deleteMany({ loan_id: prestamo._id });
+      // Eliminar el préstamo
+      await Prestamo.findByIdAndDelete(prestamo._id);
     }
-    
-    const cliente = await Cliente.findByIdAndDelete(id);
-    
+
+    // Eliminar el cliente
+    const cliente = await Cliente.findByIdAndDelete(clienteId);
+
     if (!cliente) {
       return res.status(404).json({ mensaje: 'Cliente no encontrado' });
     }
-    
-    res.json({ mensaje: 'Cliente eliminado exitosamente' });
+
+    res.json({ mensaje: 'Cliente, sus préstamos y pagos asociados eliminados correctamente' });
   } catch (error) {
     console.error('Error al eliminar cliente:', error);
     res.status(500).json({ mensaje: 'Error del servidor' });

@@ -223,7 +223,7 @@ console.log("pagos de leo eliminados")
             status:payment.status,
             paid_date: safe(payment.paid_date, null),
             incomplete_amount: safe(payment.incomplete_amount, 0),
-            payment_method:payment.payment_method,
+            payment_method:payment.payment_method ? payment.payment_method : "cash",
             due_date: safe(
               payment.due_date,
               payment.payment_date || new Date()

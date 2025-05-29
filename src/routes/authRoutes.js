@@ -17,7 +17,7 @@ router.post('/login', async (req, res) => {
         mensaje: 'Por favor proporciona código de acceso y contraseña' 
       });
     }
-    
+    console.log(req.body)
     // Buscar cliente por código de acceso
     const cliente = await Cliente.findOne({ codigoAcceso: codigoAcceso });
     

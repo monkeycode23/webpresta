@@ -8,7 +8,7 @@ interface AuthProviderProps {
 }
 
 interface Cliente {
-  id: string;
+  _id: string;
   nickname: string;
   name: string;
   lastname: string;
