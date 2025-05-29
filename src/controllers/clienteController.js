@@ -71,47 +71,117 @@ export const getResumenCliente = async (req, res) => {
       return res.status(404).json({ mensaje: 'Cliente no encontrado' });
     }
     
-    // Obtener préstamos
+    // Obtener préstamos con sus pagos populados
     const prestamos = await Prestamo.find({ client_id: clienteId }).populate('payments');
     
-    // Obtener pagos
-    
-    //const pagos = await prestamos.find({ loan_id: clienteId }).
-    
-  
-  
-    // Calcular totales
     const totalPrestamos = prestamos.length;
     const totalPrestado = prestamos.reduce((sum, prestamo) => sum + prestamo.amount, 0);
-    //console.log(totalPagado);
-    const totalPendiente = prestamos.reduce((sum, prestamo) => sum + 
-    prestamo.payments.filter(pago => pago.status !== 'paid').reduce((sum, pago) => sum + pago.amount, 0)
-    , 0);
-    const totalPagado = totalPrestado - totalPendiente;
+
+    let totalPagadoReal = 0;
+    let totalPendienteReal = 0;
+
+    prestamos.forEach(prestamo => {
+      if (prestamo.payments && prestamo.payments.length > 0) {
+        prestamo.payments.forEach(pago => {
+          if (pago.status && (pago.status.toLowerCase() === 'paid' || pago.status.toLowerCase() === 'completado')) {
+            totalPagadoReal += pago.amount;
+          } else if (pago.status && pago.status.toLowerCase() !== 'paid' && pago.status.toLowerCase() !== 'completado') {
+            // Consideramos pendiente cualquier cosa que no sea 'paid' o 'completado'
+            // Aquí podrías ser más específico si tienes otros estados como 'anulado' que no cuentan como pendiente.
+            totalPendienteReal += pago.amount; 
+          }
+        });
+      }
+    });
  
+    // --- INICIO: Lógica para calcular la próxima fecha de pago general ---
+    let proximaFechaPagoGeneral = null;
+    let detalleProximoPago = null;
+
+    // Filtrar préstamos que no estén 'completed' o 'paid' (considera tus estados)
+    const prestamosActivos = prestamos.filter(p => p.status &&  p.status !== 'completed');
+
+    console.log(prestamosActivos,"prestamosActivos")
+
+    if (prestamosActivos.length > 0) {
+      let proximasCuotasGlobal = [];
+      console.log("asasd")
+
+      for (const prestamo of prestamosActivos) {
+        if (prestamo.payments && prestamo.payments.length > 0) {
+          const cuotasPendientesDelPrestamo = prestamo.payments
+            .filter(p => p.status === 'pending'  && new Date(p.payment_date) >= new Date())
+            .sort((a, b) => new Date(a.payment_date).getTime() - new Date(b.payment_date).getTime());
+          console.log(cuotasPendientesDelPrestamo,"cuotasPendientesDelPrestamo")
+          if (cuotasPendientesDelPrestamo.length > 0) {
+            console.log(cuotasPendientesDelPrestamo,"cuotasPendientesDelPrestamo")
+            proximasCuotasGlobal.push({
+              fecha: cuotasPendientesDelPrestamo[0].payment_date,
+              monto: cuotasPendientesDelPrestamo[0].amount,
+              prestamoLabel: prestamo.label || `Préstamo ${prestamo._id.toString().substring(0,6)}`,
+              cuotaLabel: cuotasPendientesDelPrestamo[0].label || `Cuota ${cuotasPendientesDelPrestamo[0].installment_number || ''}`.trim(),
+              prestamoId: prestamo._id
+            });
+          }
+        }
+      }
+
+      if (proximasCuotasGlobal.length > 0) {
+        console.log(proximasCuotasGlobal,"proximasCuotasGlobal")
+        proximasCuotasGlobal.sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
+        const proximoPagoMasCercano = proximasCuotasGlobal[0];
+        
+        proximaFechaPagoGeneral = proximoPagoMasCercano.fecha;
+        
+        detalleProximoPago = {
+          prestamoLabel: proximoPagoMasCercano.prestamoLabel,
+          cuotaLabel: proximoPagoMasCercano.cuotaLabel,
+          monto: proximoPagoMasCercano.monto,
+          prestamoId: proximoPagoMasCercano.prestamoId
+        };
+      }
+    }
+    // --- FIN: Lógica para calcular la próxima fecha de pago general ---
    
-   
-    // Crear resumen
+    const pagosRecientesLista = prestamos.flatMap(prestamo => 
+        prestamo.payments ? prestamo.payments.map(p => ({ 
+          ...(p.toObject ? p.toObject() : p), // Manejar si p es un doc de Mongoose o ya un objeto
+          prestamoLabel: prestamo.label || `Préstamo ${prestamo._id.toString().substring(0,6)}`,
+          prestamoId: prestamo._id,
+          // Asegúrate que payment_date y paid_date existen y son válidos para ordenar
+          fechaOrdenamiento: p.paid_date || p.payment_date || p.updated_at 
+        })) : []
+      )
+      .filter(p => p.status && (p.status.toLowerCase() === 'paid' || p.status.toLowerCase() === 'completado'))
+      .sort((a,b) => new Date(b.fechaOrdenamiento).getTime() - new Date(a.fechaOrdenamiento).getTime())
+      .slice(0, 5);
+
     const resumen = {
-      cliente,
+      cliente: {
+        id: cliente._id,
+        nombre: cliente.name || cliente.nickname,
+        apellido: cliente.lastname,
+        email: cliente.email
+      },
       prestamos: {
-        prestamos: prestamos,
         total: totalPrestamos,
-        activos: prestamos.filter(p => p.status !== 'completed').length,
-        pagados: prestamos.filter(p => p.status === 'completed').length
+        activos: prestamosActivos.length, // Usar la cuenta de prestamosActivos ya filtrada
+        pagados: prestamos.filter(p => p.status && (p.status.toLowerCase() === 'completed' || p.status.toLowerCase() === 'paid')).length
       },
       montos: {
         totalPrestado,
-        totalPagado,
-        totalPendiente
+        totalPagado: totalPagadoReal,
+        totalPendiente: totalPendienteReal
       },
-      pagosRecientes: prestamos.flatMap(prestamo => prestamo.payments)
+      pagosRecientes: pagosRecientesLista,
+      proximaFechaPagoGeneral,
+      detalleProximoPago,
     };
     
     res.json(resumen);
   } catch (error) {
     console.error('Error al obtener resumen del cliente:', error);
-    res.status(500).json({ mensaje: 'Error del servidor' });
+    res.status(500).json({ mensaje: 'Error del servidor', detalle: error.message });
   }
 };
 

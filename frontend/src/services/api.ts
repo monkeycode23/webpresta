@@ -70,14 +70,20 @@ export interface ResumenCliente {
     total: number;
     activos: number;
     pagados: number;
-    prestamos: Prestamo[];
   };
   montos: {
     totalPrestado: number;
     totalPagado: number;
     totalPendiente: number;
   };
-  pagosRecientes: Pago[];
+  pagosRecientes: (Pago & { prestamoLabel?: string, prestamoId?: string })[];
+  proximaFechaPagoGeneral?: string | null;
+  detalleProximoPago?: {
+    prestamoLabel?: string;
+    cuotaLabel?: string;
+    monto?: number;
+    prestamoId?: string;
+  } | null;
 }
 
 export interface DetallePrestamo {

@@ -144,10 +144,10 @@ const DashboardPage: React.FC = () => {
   return (
     <div className="container mx-auto p-4 sm:p-6 lg:p-8">
       <h1 className="text-3xl font-bold text-gray-800 mb-6">
-        Bienvenido, {resumen.cliente.nombre}
+        Bienvenido, {resumen.cliente.nombre} {resumen.cliente.apellido}
       </h1>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <div className="bg-white shadow-lg rounded-xl p-6 flex flex-col justify-between">
           <div>
             <h2 className="text-xl font-semibold text-gray-700 mb-2">Préstamos Activos</h2>
@@ -177,6 +177,43 @@ const DashboardPage: React.FC = () => {
           <Link to="/payments" className="mt-4 inline-block text-center w-full bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-lg transition duration-150">
             Ver Pagos
           </Link>
+        </div>
+
+        <div className="bg-white shadow-lg rounded-xl p-6 flex flex-col justify-between">
+          <div>
+            <h2 className="text-xl font-semibold text-gray-700 mb-2">Próximo Pago</h2>
+            {resumen.proximaFechaPagoGeneral && resumen.detalleProximoPago ? (
+              <>
+                <p className="text-3xl font-bold text-orange-500 mb-1">
+                  {formatCurrency(resumen.detalleProximoPago.monto || 0)}
+                </p>
+                <p className="text-lg text-gray-600 font-medium">
+                  {formatDate(resumen.proximaFechaPagoGeneral)}
+                </p>
+                <p className="text-sm text-gray-500 mt-1">
+                  {resumen.detalleProximoPago.prestamoLabel} - {resumen.detalleProximoPago.cuotaLabel}
+                </p>
+              </>
+            ) : resumen.proximaFechaPagoGeneral ? (
+                 <p className="text-lg font-semibold text-gray-600">
+                    Próximo pago el: {formatDate(resumen.proximaFechaPagoGeneral)}
+                 </p>
+            ) : (
+              <p className="text-lg font-semibold text-gray-600">
+                ¡Estás al día! No hay pagos próximos programados.
+              </p>
+            )}
+          </div>
+          {resumen.proximaFechaPagoGeneral && resumen.detalleProximoPago && resumen.detalleProximoPago.prestamoId ? (
+            <Link 
+              to={`/loans/${resumen.detalleProximoPago.prestamoId}`} 
+              className="mt-4 inline-block text-center w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2 px-4 rounded-lg transition duration-150"
+            >
+              Ver Préstamo Asociado
+            </Link>
+          ) : (
+            <p className="mt-4 text-xs text-gray-400 text-center">Información de tu siguiente cuota</p>
+          )}
         </div>
       </div>
       

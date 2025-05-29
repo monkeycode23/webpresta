@@ -36,7 +36,7 @@ export const getDetallePrestamoConPagos = async (req, res) => {
     
     // Calcular información adicional
     const proximaFechaPago = calcularProximaFechaPago(prestamo, prestamo.payments);
-    const cuotasRestantesProgramadas = pagos.filter(pago => pago.status === 'pending').map(pago => ({
+    const cuotasRestantesProgramadas = pagos.filter(pago => pago.status === 'pending' || pago.status === 'incomplete').map(pago => ({
       numeroCuota: pago.label,
       fechaEstimada: pago.payment_date,
       monto: pago.amount,
@@ -52,11 +52,13 @@ export const getDetallePrestamoConPagos = async (req, res) => {
       pagos,
       resumen: {
         cuotasPagadas: prestamo.payments.filter(pago => pago.status === 'paid').length,
-        cuotasRestantes: prestamo.installment_number - prestamo.payments.filter(pago => pago.status === 'paid').length,
-        totalPagado: prestamo.payments.reduce((acc, pago) => pago.status === 'paid' ? acc + pago.amount : acc, 0),
-        montoRestante: prestamo.total_amount - prestamo.payments.reduce((acc, pago) => pago.status === 'paid' ? acc + pago.amount : acc, 0),
+        cuotasRestantes: prestamo.installment_number - prestamo.payments.filter(pago => pago.status === 'paid' || pago.status === 'incomplete').length,
+        totalPagado: prestamo.payments.reduce((acc, pago) => pago.status === 'paid' || pago.status === 'incomplete' ? pago.status === 'incomplete' ?
+         acc+pago.incomplete_amount : acc + pago.amount : acc, 0),
+        montoRestante: prestamo.total_amount - prestamo.payments.reduce((acc, pago) => pago.status === 'paid' || pago.status === 'incomplete' ? acc + pago.amount : acc, 0),
         proximaFechaPago,
-        porcentajePagado: (prestamo.payments.reduce((acc, pago) => pago.status === 'paid' ? acc + pago.amount : acc, 0) / prestamo.total_amount * 100).toFixed(2)
+        porcentajePagado: (prestamo.payments.reduce((acc, pago) => pago.status === 'paid' || pago.status === 'incomplete' ? 
+        pago.status === 'incomplete' ? acc+pago.incomplete_amount : acc + pago.amount : acc, 0) / prestamo.total_amount * 100).toFixed(2)
       },
       cuotasRestantesProgramadas
     };

@@ -152,7 +152,7 @@ const LoanDetailPage: React.FC = () => {
     }
   };
 
-  const vencidosPagosList = detallePrestamo.pagos.filter(cuota => cuota.status === 'Vencido');
+  const vencidosPagosList = detallePrestamo.pagos.filter(cuota => cuota.status === 'expired');
   const historialPagosList = detallePrestamo.pagos
     .filter(pago => pago.status === 'paid' || pago.status === 'incomplete')
     .reverse();
@@ -277,7 +277,11 @@ const LoanDetailPage: React.FC = () => {
                   </svg>
                 </div>
                 <div className="ml-3">
-                  <p className="text-sm text-green-700">No hay cuotas pendientes. ¡Préstamo completamente pagado!</p>
+                  {vencidosPagosList.length >0 && detallePrestamo.cuotasRestantesProgramadas.length === 0 ? (
+                    <p className="text-sm text-green-700">No hay cuotas pendientes, pero hay cuotas vencidas</p>
+                  ) : (
+                    <p className="text-sm text-green-700">No hay cuotas pendientes. ¡Préstamo completamente pagado!</p>
+                  )}
                 </div>
               </div>
             </div>
