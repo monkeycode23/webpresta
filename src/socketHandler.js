@@ -1,10 +1,9 @@
 import jwt from 'jsonwebtoken';
 import Cliente from './models/cliente.js'; // Use Cliente model for authentication
+import { io as mainIo } from './index.js'; // Importar la instancia \`io\` principal
 
 const connectedUsers = new Map(); // Map to store clienteID -> socketID
 const JWT_SECRET = process.env.JWT_SECRET || 'prestaweb-secret-key'; // Align with authMiddleware
-
-
 
 export default function initializeSocket(io) {
   io.use(async (socket, next) => {
@@ -66,4 +65,26 @@ export default function initializeSocket(io) {
 
 export function getReceiverSocketId(receiverId) {
   return connectedUsers.get(receiverId.toString());
+}
+
+/**
+ * Envía una notificación a un usuario específico si está conectado.
+ * @param {string} clienteId El ID del cliente que recibirá la notificación.
+ * @param {object} notificationData Datos de la notificación (debe coincidir con la interfaz Notification del frontend).
+ *                                  Ej: { id: uuidv4(), type: 'info', title: 'Título', message: 'Mensaje', timestamp: new Date().toISOString(), read: false, link?: '/ruta' }
+ */
+export function sendNotificationToUser(clienteId, notificationData) {
+  if (!mainIo) { // Usar mainIo, la instancia exportada de index.js
+    console.error('Socket.IO server (mainIo) not initialized in socketHandler.');
+    return;
+  }
+  const socketId = getReceiverSocketId(clienteId);
+  if (socketId) {
+    console.log(`Sending notification to clienteId ${clienteId} (socketId ${socketId}):`, notificationData);
+    mainIo.to(socketId).emit('new_notification', notificationData);
+  } else {
+    console.log(`Cliente ${clienteId} no conectado. Notificación no enviada en tiempo real.`);
+    // Aquí podrías guardar la notificación en la BD para mostrarla cuando el usuario se conecte,
+    // o si ya tienes un sistema de notificaciones persistentes, asegurar que se guarde.
+  }
 } 
