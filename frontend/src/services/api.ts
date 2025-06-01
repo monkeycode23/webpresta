@@ -41,6 +41,8 @@ export interface Prestamo {
 export interface Pago {
   _id: string;
   prestamo: string | Prestamo;
+  prestamoLabel: string;
+  prestamoId: string;
   cliente: string;
   incomplete_amount: number;
   amount: number;

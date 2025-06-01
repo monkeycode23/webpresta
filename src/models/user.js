@@ -7,8 +7,32 @@ const userSchema = new mongoose.Schema({
         unique: true,
         sparse: true
     },
-    username: String,
-    email: String,
+    isConnected: Boolean,
+    username:{
+        type:String,
+        unique:true,
+        sparse:true
+    },
+    role:{
+        type:String,
+        enum:["admin","user","mod"],
+        default:"user"
+            },
+    avatar:{
+        type:String,
+        default:"https://i.pravatar.cc/150?img=64"
+    },
+    email: {
+        type:String,
+        unique:true,
+        sparse:true
+    },
+    rooms:[
+        {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Room'
+        }
+    ],
     password: String,
     number: String,
     address: String,
@@ -25,26 +49,24 @@ const userSchema = new mongoose.Schema({
     isPhoneVerified: Boolean,
     isGoogle: Boolean,
     isFacebook: Boolean,
-    isApple: Boolean,
-    isMicrosoft: Boolean,
-    isTwitter: Boolean,
-    isInstagram: Boolean,
-    isLinkedin: Boolean,
-    isGithub: Boolean,
-    isDribbble: Boolean,
-    isBehance: Boolean,
-    isPinterest: Boolean,
-    isTiktok: Boolean,
+    notification: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Notification'
+      }]
 })  
 
 
 userSchema.pre('save', async function (next) {
     if (!this.isModified('password')) return next()
+        if(this.password.length > 20){
+            next()
+        }
     this.password = await bcrypt.hash(this.password, 10)
     next()
 })
 
 userSchema.methods.comparePassword = async function (password) {
+
     return await bcrypt.compare(password, this.password)
 }
 

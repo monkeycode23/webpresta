@@ -67,10 +67,19 @@ const clienteSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   },
+  isConnected: Boolean,
   loans: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Prestamo'
-  }]
+  }],
+  rooms: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Room'
+  }],
+  notification: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Notification'
+  }]	
 }, {
   timestamps: {
     createdAt: 'created_at',

@@ -34,13 +34,13 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ show, onHide, payment }) =>
   // Updated to return Tailwind classes
   const getStatusClasses = (status: string): string => {
     switch (status) {
-      case 'Completado':
+      case 'paid':
         return 'bg-green-100 text-green-800';
-      case 'Pendiente':
+      case 'pending':
         return 'bg-blue-100 text-blue-800';
-      case 'Incompleto':
+      case 'incomplete':
         return 'bg-yellow-100 text-yellow-800';
-      case 'Vencido':
+      case 'expired':
         return 'bg-red-100 text-red-800';
       default:
         return 'bg-gray-100 text-gray-800';
@@ -48,7 +48,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ show, onHide, payment }) =>
   };
 
   const isPaymentActuallyLate = (paymentDate: string, paidDate?: string | null, status?: string): boolean => {
-    if (status === 'Completado' || status === 'Pagado') {
+    if (status === 'paid' || status === 'Pagado') {
         if (paidDate) {
             const dueDate = new Date(paymentDate);
             const actualPaidDate = new Date(paidDate);
@@ -66,7 +66,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ show, onHide, payment }) =>
   };
 
   const calculateActualDaysOverdue = (paymentDate: string, paidDate?: string | null, status?: string): number => {
-    if (status === 'Completado' || status === 'Pagado') {
+    if (status === 'paid' || status === 'Pagado') {
         if (paidDate) {
             const dueDate = new Date(paymentDate);
             const actualPaidDate = new Date(paidDate);
@@ -99,9 +99,9 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ show, onHide, payment }) =>
       }
       return `Pagado a Tiempo el ${formatDate(payment.paid_date)}`;
     }
-    if (payment.status === 'Vencido') return 'Vencido - No Pagado';
-    if (payment.status === 'Pendiente') return 'Pendiente de Pago';
-    if (payment.status === 'Incompleto') return 'Pago Incompleto';
+    if (payment.status === 'expired') return 'Vencido - No Pagado';
+    if (payment.status === 'pending') return 'Pendiente de Pago';
+    if (payment.status === 'incomplete') return 'Pago Incompleto';
     return payment.status;
   };
 

@@ -208,6 +208,15 @@ export const createCliente = async (req, res) => {
   try {
     const clienteData = req.body;
     
+    console.log(clienteData,"clienteData")
+    const query =await Cliente.findOne({nickname:clienteData.nickname ? clienteData.nickname : ""})
+    
+    console.log(query,"query")
+    if(query){
+      return res.status(400).json({type:"error",mensaje: 'El nombre de cliente ya está en uso' });
+    }
+    
+    
     // Generar código de acceso único de 5 dígitos si no se proporciona
     if (!clienteData.codigoAcceso) {
       // Generar un número aleatorio entre 10000 y 99999
@@ -220,7 +229,7 @@ export const createCliente = async (req, res) => {
     res.status(201).json(savedCliente);
   } catch (error) {
     console.error('Error al crear cliente:', error);
-    res.status(500).json({ mensaje: 'Error del servidor' });
+    res.status(500).j77son({ mensaje: 'Error del servidor' });
   }
 };
 
@@ -298,10 +307,16 @@ export const updateClienteProfile = async (req, res) => {
 // Eliminar cliente
 export const deleteCliente = async (req, res) => {
   try {
-    const { clienteId } = req.params; // Cambiado de id a clienteId para consistencia
+    const { id } = req.params; // Cambiado de id a clienteId para consistencia
 
+    console.log(req.params,"req.params")
+    const client_id = await Cliente.findOne({sqlite_id:id.toString()})
     // Encontrar y eliminar pagos y préstamos asociados al cliente
-    const prestamos = await Prestamo.find({ client_id: clienteId });
+    if(!client_id) return res.status(404).json({ mensaje: 'Cliente no encontrado' });
+
+
+    const prestamos = await Prestamo.find({ client_id: client_id._id });
+    
     for (const prestamo of prestamos) {
       // Eliminar pagos asociados al préstamo
       await Pago.deleteMany({ loan_id: prestamo._id });
@@ -310,8 +325,8 @@ export const deleteCliente = async (req, res) => {
     }
 
     // Eliminar el cliente
-    const cliente = await Cliente.findByIdAndDelete(clienteId);
-
+    const cliente = await Cliente.findByIdAndDelete(client_id._id);
+    
     if (!cliente) {
       return res.status(404).json({ mensaje: 'Cliente no encontrado' });
     }

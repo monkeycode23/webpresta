@@ -113,7 +113,8 @@ export const createPago = async (req, res) => {
     // const { client_id } = req.user; // Asumiendo que el ID del cliente está en req.user. client_id vendrá de prestamo.client_id
     
     // Validar que el préstamo existe
-    const prestamo = await Prestamo.findById(pagoData.loan_id);
+    const prestamo = await Prestamo.findOne({sqlite_id:pagoData.loan_id})
+    
     if (!prestamo) {
       return res.status(404).json({ mensaje: 'Préstamo no encontrado' });
     }
@@ -126,6 +127,8 @@ export const createPago = async (req, res) => {
       pagoData.total_amount = pagoData.amount + pagoData.gain;
     }
     
+
+
     const pago = new Pago({
         ...pagoData,
         client_id: prestamo.client_id, // Tomar client_id del préstamo asociado
@@ -182,11 +185,11 @@ export const updatePago = async (req, res) => {
     delete updateData.loan_id;
     delete updateData.created_at;
     delete updateData.updated_at;
-    
+    const pago_id = await Pago.findOne({sqlite_id:id.toString()})
     const pago = await Pago.findByIdAndUpdate(
-      id,
+      pago_id._id,
       updateData,
-      { new: true, runValidators: true }
+      { new: false, runValidators: true }
     );
     
     if (!pago) {
@@ -203,23 +206,23 @@ export const updatePago = async (req, res) => {
 // Eliminar pago
 export const deletePago = async (req, res) => {
   try {
-    const { pagoId } = req.params;
+    const { id } = req.params;
 
-    const pago = await Pago.findById(pagoId);
+    const pago = await Pago.findOne({sqlite_id:id})
     if (!pago) {
       return res.status(404).json({ mensaje: 'Pago no encontrado' });
     }
 
-    const prestamo = await Prestamo.findById(pago.loan_id);
+    const prestamo = await Prestamo.findOne({_id:pago.loan_id})
     if (!prestamo) {
       return res.status(404).json({ mensaje: 'Préstamo asociado no encontrado. No se pudo actualizar el préstamo.' });
     }
 
     const nuevoTotalPagado = prestamo.total_paid - (pago.amount || 0);
     await Prestamo.findByIdAndUpdate(
-      pago.loan_id,
+      prestamo._id,
       {
-        $pull: { payments: pagoId },
+        $pull: { payments: pago._id },
         $set: {
           total_paid: nuevoTotalPagado,
           remaining_amount: prestamo.total_amount - nuevoTotalPagado,
@@ -227,7 +230,7 @@ export const deletePago = async (req, res) => {
       }
     );
 
-    await Pago.findByIdAndDelete(pagoId);
+    await Pago.findByIdAndDelete(pago._id);
 
     res.json({ mensaje: 'Pago eliminado exitosamente y préstamo actualizado.' });
   } catch (error) {

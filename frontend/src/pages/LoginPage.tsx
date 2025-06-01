@@ -25,7 +25,7 @@ const LoginPage: React.FC = () => {
     
     try {
      const res= await dispatch(login({ codigoAcceso })).unwrap();
-     console.log(res)
+     //console.log(res)
     } catch (error) {
       // El error ya está manejado por el reducer
       console.error('Error en el login:', error);

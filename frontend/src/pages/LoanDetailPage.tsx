@@ -17,7 +17,7 @@ const LoanDetailPage: React.FC = () => {
   const [showModal, setShowModal] = useState<boolean>(false);
 
   useEffect(() => {
-    console.log("LoanDetailPage: useEffect triggered. Current ID:", loanId);
+    //console.log("LoanDetailPage: useEffect triggered. Current ID:", loanId);
     const fetchDetallePrestamo = async () => {
       if (!loanId) {
         setIsLoading(false);
@@ -28,11 +28,11 @@ const LoanDetailPage: React.FC = () => {
       setIsLoading(true); 
       try {
         const data = await apiService.getDetallePrestamo(loanId);
-        console.log("DetallePrestamo:", data);
+        //console.log("DetallePrestamo:", data);
         setDetallePrestamo(data);
         setError(null);
       } catch (err) {
-        console.error('Error fetching loan details:', err);
+        //console.error('Error fetching loan details:', err);
         setError('Error al cargar los detalles del préstamo');
         setDetallePrestamo(null); 
       } finally {
@@ -64,9 +64,9 @@ const LoanDetailPage: React.FC = () => {
     switch (status?.toLowerCase()) {
       case 'completed':
       case 'paid':
-      case 'active':
+      
         return 'bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs font-semibold';
-      case 'pendiente':
+      case 'active':
       case 'pending':
         return 'bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs font-semibold';
       case 'incompleto':
@@ -137,6 +137,8 @@ const LoanDetailPage: React.FC = () => {
       case 'fortnightly':
       case 'fortnight':
         return 'Quincenal';
+      case "custom":
+        return "Irregular"
       case 'yearly':
         return 'Anual';
       case 'quarterly':

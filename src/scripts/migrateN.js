@@ -5,8 +5,9 @@ import dotenv from "dotenv";
 import Cliente from "../models/cliente.js";
 import Prestamo from "../models/prestamo.js";
 import Pago from "../models/pago.js";
-//import User from '../models/user.js';
+import User from '../models/user.js';
 //import { generateAccessCode } from './generate_access_codes.cjs';
+import bcrypt from 'bcrypt'
 
 dotenv.config();
 
@@ -77,6 +78,7 @@ async function migrateData() {
     await Cliente.deleteMany({});
     await Prestamo.deleteMany({});
     await Pago.deleteMany({});
+    await User.deleteMany({});
     console.log("Colecciones limpiadas");
 
     // Conectar a SQLite
@@ -107,6 +109,45 @@ WHERE client_id NOT IN (SELECT id FROM clients);
 `)
 console.log(q)
 process.exit() */
+
+
+
+try {
+  const users = await db.all("SELECT * FROM users ")
+
+console.log(`Usuarios encontrados ${users.length} \n`)
+
+if(users.length){
+
+
+  for (const [i, user] of users.entries()) {
+      console.log(`Migrando usuario ${user.username}}`)
+      const mUser = new User({
+        username:user.username,
+        password:await bcrypt.hash(user.username,10),
+        email:user.email,
+        sqlite_id:user.id.toString(),
+        role:user.rol,
+        status:user.status
+      })
+
+      
+      mUser.save()
+
+      console.log("Usuario "+user.username+" migrado")
+  }
+
+}
+} catch (error) {
+  console.error("Error durante la migración:", error);
+  if (mongoose.connection.readyState === 1) {
+    await mongoose.connection.close();
+  }
+  process.exit(1);
+}
+
+
+
 
 /* const q = await db.exec(`UPDATE loans SET status='active' WHERE status not in ('active','completed','canceled')`)
 console.log("pagos de leo eliminados") */

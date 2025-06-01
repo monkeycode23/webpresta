@@ -148,27 +148,42 @@ export const getPagosPrestamo = async (req, res) => {
 // Crear nuevo préstamo
 export const createPrestamo = async (req, res) => {
   try {
-    const prestamoData = req.body;
+    const {prestamo,payments} = req.body;
     
     // Validar que el cliente existe
-    const cliente = await Cliente.findById(prestamoData.client_id);
+    const cliente = await Cliente.findById(prestamo.client_id);
     if (!cliente) {
       return res.status(404).json({ mensaje: 'Cliente no encontrado' });
     }
-    
+     
     // Calcular montos si no se proporcionan
-    if (!prestamoData.total_amount) {
-      prestamoData.total_amount = prestamoData.amount + prestamoData.gain;
+    if (!prestamo.total_amount) {
+      prestamo.total_amount = prestamo.amount + prestamo.gain;
     }
-    
-    const prestamo = new Prestamo(prestamoData);
-    const savedPrestamo = await prestamo.save();
+
+    const client = await Cliente.findOne({sqlite_id:prestamo.client_id})
+    if(!client){
+      return res.status(404).json({ mensaje: 'Cliente no encontrado' });
+    }
+    const sqlite_id = prestamo.id
+    delete prestamo.id
+    const _prestamo = new Prestamo({...prestamo,client_id:client._id,sqlite_id:sqlite_id});
+    const savedPrestamo = await _prestamo.save();
     
     // Actualizar el cliente con la referencia al préstamo
     await Cliente.findByIdAndUpdate(
-      prestamoData.client_id,
+      client._id,
       { $push: { loans: savedPrestamo._id } }
     );
+
+    const _payments = payments.map(payment =>{
+
+      const sqlite_id = payment.id
+
+      delete payment.id
+      return {...payment, loan_id:savedPrestamo._id,sqlite_id:sqlite_id}
+    });
+    const savedPayments = await Pago.insertMany(_payments);
     
     res.status(201).json(savedPrestamo);
   } catch (error) {
@@ -181,24 +196,39 @@ export const createPrestamo = async (req, res) => {
 export const updatePrestamo = async (req, res) => {
   try {
     const { id } = req.params;
-    const updateData = req.body;
+    const {prestamo,payments} = req.body;
     
     // No permitir actualizar ciertos campos
-    delete updateData.client_id;
-    delete updateData.created_at;
-    delete updateData.updated_at;
+    delete prestamo.client_id;
+    delete prestamo.created_at;
+    delete prestamo.updated_at;
     
-    const prestamo = await Prestamo.findByIdAndUpdate(
+    const _prestamo = await Prestamo.findByIdAndUpdate(
       id,
-      updateData,
+      prestamo,
       { new: true, runValidators: true }
     );
-    
-    if (!prestamo) {
+
+ 
+    if (!_prestamo) {
       return res.status(404).json({ mensaje: 'Préstamo no encontrado' });
     }
+
+
+    if(payments.length > 0){
+
+      const _payments = payments.map(payment =>{
+
+        const sqlite_id = payment.id
+  
+        delete payment.id
+        return {...payment, loan_id:savedPrestamo._id,sqlite_id:sqlite_id}
+      });
+
+      const savedPayments = await Pago.insertMany(_payments);
+    }
     
-    res.json(prestamo);
+    res.json(_prestamo);
   } catch (error) {
     console.error('Error al actualizar préstamo:', error);
     res.status(500).json({ mensaje: 'Error del servidor' });
@@ -208,24 +238,24 @@ export const updatePrestamo = async (req, res) => {
 // Eliminar préstamo
 export const deletePrestamo = async (req, res) => {
   try {
-    const { prestamoId } = req.params;
+    const { id } = req.params;
 
-    const prestamo = await Prestamo.findById(prestamoId);
+    const prestamo = await Prestamo.findOne({sqlite_id:id.toString()})
     if (!prestamo) {
       return res.status(404).json({ mensaje: 'Préstamo no encontrado' });
     }
 
     // Eliminar pagos asociados al préstamo
-    await Pago.deleteMany({ loan_id: prestamoId });
+    await Pago.deleteMany({ loan_id: prestamo._id });
 
     // Eliminar el préstamo de la lista de préstamos del cliente
     await Cliente.findByIdAndUpdate(
       prestamo.client_id,
-      { $pull: { loans: prestamoId } }
+      { $pull: { loans: prestamo._id } }
     );
 
     // Eliminar el préstamo
-    await Prestamo.findByIdAndDelete(prestamoId);
+    await Prestamo.findByIdAndDelete(prestamo._id);
 
     res.json({ mensaje: 'Préstamo y sus pagos asociados eliminados correctamente' });
   } catch (error) {
@@ -255,4 +285,4 @@ export const getLoansForFilter = async (req, res) => {
         console.error("Error fetching loans for filter:", error);
         res.status(500).json({ message: "Error al obtener los préstamos para el filtro: " + error.message });
     }
-}; 
+};  

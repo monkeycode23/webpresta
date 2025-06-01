@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 import Cliente from '../models/cliente.js';
-
+import User from '../models/user.js';
 const JWT_SECRET = process.env.JWT_SECRET || 'prestaweb-secret-key';
 
 
@@ -27,35 +27,46 @@ export const verificarToken = async (req, res, next) => {
     // Verificar el token
     const decoded = jwt.verify(token, JWT_SECRET);
     
+    console.log("decoded",decoded)
     // Buscar el cliente
-    const cliente = await Cliente.findById(decoded.id);
-    
-    if (!cliente) {
-      return res.status(401).json({ mensaje: 'Cliente no encontrado.' });
+    const id = typeof  decoded.id === "number" ? {sqlite_id:decoded.id} : {_id:decoded.id};
+    const cliente = await Cliente.findOne(id);
+    const user = await User.findOne(id);
+
+    console.log("cliente",cliente,"user",user)
+    if(!cliente && !user){
+      return res.status(401).json({ mensaje: 'Cliente o usuario no encontrado.' });
     }
+
+    if(cliente){
+      req.cliente = cliente;
+      req.clienteId = cliente._id;
+    }
+    if(user){
+      req.user = user;
+      req.userId = user._id;
+    }
+    
   /*   
     if (!cliente.activo) {
       return res.status(401).json({ mensaje: 'La cuenta de este cliente está desactivada.' });
     } */
     
     // Agregar el cliente al objeto de solicitud
-    req.cliente = cliente;
-    req.clienteId = cliente._id;
-    
     next();
   } catch (error) {
     
     console.error('Error de autenticación:', error);
     
     if (error.name === 'JsonWebTokenError') {
-      return res.status(401).json({ mensaje: 'Token inválido.' });
+      return res.status(401).json({type:"error", mensaje: 'Token inválido.' });
     }
     
     if (error.name === 'TokenExpiredError') {
-      return res.status(401).json({ mensaje: 'Token expirado.' });
+      return res.status(401).json({type:"error", mensaje: 'Token expirado.' });
     }
     
-    res.status(500).json({ mensaje: 'Error del servidor.' });
+    res.status(500).json({type:"error", mensaje: 'Error del servidor.' });
   }
 };
 

@@ -28,7 +28,7 @@ const LoansPage: React.FC = () => {
         setIsLoading(true);
         const data = await apiService.getPrestamosCliente(user._id);
         // setPrestamos(data);
-        console.log(data)
+        //console.log(data)
         const totals = data.reduce((acc, prestamo) => {
           const totalPagado = prestamo.payments.reduce((sum, pago) => 
             pago.status === 'paid' ? sum + pago.amount : sum, 0);
@@ -38,7 +38,7 @@ const LoansPage: React.FC = () => {
           return acc;
         }, {} as {[key: string]: PrestamoConTotales});
         
-        console.log(totals)
+        //console.log(totals)
         setPrestamos(Object.values(totals));
         setError(null);
       } catch (err: any) {
@@ -178,6 +178,8 @@ const LoansPage: React.FC = () => {
         return 'Semanal';
       case 'biweekly':
         return 'Bi-Semanal';
+      case "custom":
+        return "Irregular"
       case 'monthly':
         return 'Mensual';
       case 'quarterly':

@@ -17,7 +17,7 @@ const notificationSchema = new mongoose.Schema({
   type: {
     type: String,
     required: true,
-    enum: ['nuevo_prestamo', 'pago_registrado', 'actualizacion_estado', 'mensaje_sistema', 'recordatorio_pago', 'otro'],
+    
   },
   message: {
     type: String,

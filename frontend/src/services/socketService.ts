@@ -18,7 +18,7 @@ class SocketService {
         // if (token && this.socket) {
         //   this.socket.emit('authenticate', { token });
         // }
-      });
+      }); 
 
       this.socket.on('disconnect', (reason) => {
         console.log('Socket disconnected:', reason);
@@ -27,7 +27,7 @@ class SocketService {
       this.socket.on('connect_error', (error) => {
         console.error('Socket connection error:', error);
       });
-
+ 
     } else {
         console.log('Socket already connected or connection attempt in progress.');
     }

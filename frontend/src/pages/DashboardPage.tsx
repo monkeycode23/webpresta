@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import apiService, { ResumenCliente, Pago } from '../services/api';
 import LoadingSpinner from '../components/LoadingSpinner';
-
+import PaymentModal from '../components/PaymentModal';
 const DashboardPage: React.FC = () => {
   const { user } = useAuth();
   const [resumen, setResumen] = useState<ResumenCliente | null>(null);
@@ -23,11 +23,11 @@ const DashboardPage: React.FC = () => {
       setIsLoading(true);
       try {
         const data = await apiService.getResumenCliente(user._id); 
-        console.log(data)
+        ////console.log(data)
         setResumen(data);
         setError(null);
       } catch (err: any) {
-        console.error('Error al obtener resumen:', err);
+        //console.error('Error al obtener resumen:', err);
         setError(err.response?.data?.message || 'No se pudo cargar la información del resumen. Intente nuevamente.');
       } finally {
         setIsLoading(false);
@@ -140,7 +140,7 @@ const DashboardPage: React.FC = () => {
       </div>
     );
   }
-
+ 
   return (
     <div className="container mx-auto p-4 sm:p-6 lg:p-8">
       <h1 className="text-3xl font-bold text-gray-800 mb-6">
@@ -226,7 +226,7 @@ const DashboardPage: React.FC = () => {
                 <tr>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Préstamo</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cuota</th>
+                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cuota</th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Monto</th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Método</th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
@@ -240,7 +240,7 @@ const DashboardPage: React.FC = () => {
                       className="hover:bg-gray-50 cursor-pointer transition duration-150"
                     >
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{formatDate(pago.payment_date)}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{typeof pago.prestamo === 'object' ? pago.prestamo.label : pago.prestamo}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{pago.prestamoLabel}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{pago.label}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{formatCurrency(pago.amount)}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{pago.payment_method || 'Efectivo'}</td>
@@ -276,95 +276,11 @@ const DashboardPage: React.FC = () => {
       )}
 
       {/* Modal con Tailwind CSS */}
-      {showModal && selectedPayment && (
-        <div className="fixed z-50 inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-          <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            {/* Background overlay, show/hide based on modal state. */}
-            <div 
-              className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
-              aria-hidden="true"
-              onClick={() => setShowModal(false)} // Cierra el modal al hacer clic en el overlay
-            ></div>
-
-            {/* This element is to trick the browser into centering the modal contents. */}
-            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-
-            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl lg:max-w-4xl sm:w-full">
-              <div className="bg-white px-4 pt-5 pb-4 sm:p-6">
-                <div className="sm:flex sm:items-start">
-                  <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 sm:mx-0 sm:h-10 sm:w-10">
-                    <svg className="h-6 w-6 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-                    </svg>
-                  </div>
-                  <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
-                    <div className="flex justify-between items-center">
-                        <h3 className="text-xl leading-6 font-semibold text-gray-900" id="modal-title">
-                        Detalles del Pago
-                        </h3>
-                        <button 
-                            onClick={() => setShowModal(false)} 
-                            className="text-gray-400 hover:text-gray-600 transition ease-in-out duration-150"
-                        >
-                        <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                        </button>
-                    </div>
-                    <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-                      {/* Columna Izquierda Detalles del Pago */}
-                      <div className="space-y-2">
-                        <h4 className="text-md font-medium text-gray-600">Información del Pago</h4>
-                        <p className="text-sm text-gray-800"><strong>Estado:</strong> <span className={`px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusClass(selectedPayment.status)}`}>{translateStatusToSpanish(selectedPayment.status)}</span></p>
-                        <p className="text-sm text-gray-800"><strong>Fecha Programada:</strong> {formatDate(selectedPayment.payment_date)}</p>
-                        <p className="text-sm text-gray-800"><strong>Monto Total:</strong> {formatCurrency(selectedPayment.amount)}</p>
-                        {selectedPayment.status === 'Incompleto' && (
-                          <>
-                            <p className="text-sm text-gray-800"><strong>Monto Pagado:</strong> {formatCurrency(selectedPayment.incomplete_amount || 0)}</p>
-                            <p className="text-sm text-gray-800"><strong>Monto Pendiente:</strong> {formatCurrency(selectedPayment.amount - (selectedPayment.incomplete_amount || 0))}</p>
-                          </>
-                        )}
-                        <p className="text-sm text-gray-800"><strong>Método de Pago:</strong> {selectedPayment.payment_method}</p>
-                        <p className="text-sm text-gray-800"><strong>Fecha de Registro:</strong> {formatDate(selectedPayment.created_at)}</p>
-                        <p className="text-sm text-gray-800"><strong>Última Actualización:</strong> {formatDate(selectedPayment.updated_at)}</p>
-                      </div>
-                      {/* Columna Derecha Detalles de la Cuota */}
-                      <div className="space-y-2">
-                        <h4 className="text-md font-medium text-gray-600">Información de la Cuota</h4>
-                        <p className="text-sm text-gray-800"><strong>Préstamo:</strong> {typeof selectedPayment.prestamo === 'object' ? selectedPayment.prestamo.label : 'N/A'}</p>
-                        <p className="text-sm text-gray-800"><strong>Cuota:</strong> {selectedPayment.label}</p>
-                        <p className="text-sm text-gray-800"><strong>Número de Cuota:</strong> {selectedPayment.installment_number}</p>
-                        <p className="text-sm text-gray-800"><strong>Fecha Efectiva de Pago:</strong> {selectedPayment.paid_date ? formatDate(selectedPayment.paid_date) : 'Pendiente de pago'}</p>
-                        <p className="text-sm text-gray-800"><strong>Estado del Pago:</strong> 
-                          {isPaymentLate(selectedPayment.payment_date, selectedPayment.status) ? (
-                            <span className="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-700">Atrasado</span>
-                          ) : (
-                            <span className="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-700">A Tiempo / Pagado</span>
-                          )}
-                        </p>
-                        {isPaymentLate(selectedPayment.payment_date, selectedPayment.status) && (
-                          <p className="text-sm text-gray-800"><strong>Días de Atraso:</strong> {calculateDaysOverdue(selectedPayment.payment_date, selectedPayment.status)} días</p>
-                        )}
-                        <p className="text-sm text-gray-800"><strong>Referencia:</strong> {selectedPayment.reference || 'N/A'}</p>
-                        <p className="text-sm text-gray-800"><strong>Notas:</strong> {selectedPayment.notes || 'Sin notas'}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-gray-100 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                <button 
-                  type="button" 
-                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm transition ease-in-out duration-150"
-                  onClick={() => setShowModal(false)}
-                >
-                  Cerrar
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+     <PaymentModal
+        show={showModal}
+        onHide={() => setShowModal(false)}
+        payment={selectedPayment}
+      />
     </div>
   );
 };

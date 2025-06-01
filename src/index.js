@@ -10,7 +10,8 @@ import authRoutes from './routes/authRoutes.js'
 import clienteRoutes from './routes/clienteRoutes.js'
 import prestamoRoutes from './routes/prestamoRoutes.js'
 import pagoRoutes from './routes/pagoRoutes.js'
-import userRoutes from './routes/userRoutes.js'; // Nueva ruta
+import userRoutes from './routes/userRoutes.js'
+import roomRoutes from './routes/roomRoutes.js'
 import notificationRoutes from './routes/notificationRoutes.js'; // Nueva ruta
 import dotenv from 'dotenv'
 //import ngrok from '@ngrok/ngrok'
@@ -24,9 +25,9 @@ const __dirname = path.dirname(__filename)
 
 // Configuración de variables de entorno
 const PORT = process.env.PORT || 4000
-const uri = "mongodb+srv://wtf2233:wwfXaR1e1cOsBWZv@cluster0.2yipgj7.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
-const MONGODB_URI = /* process.env.MONGODB_URI || */ "mongodb://localhost:27017/prestaweb"
-
+//const uri = "mongodb+srv://wtf2233:wwfXaR1e1cOsBWZv@cluster0.2yipgj7.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
+const MONGODB_URI =  /* process.env.MONGODB_URI || */  "mongodb://localhost:27017/prestaweb"
+ 
 // Inicializar la aplicación Express
 const app = express()
 const httpServer = createServer(app); // Crear servidor HTTP para Socket.IO
@@ -67,7 +68,7 @@ app.use('/api/clientes', clienteRoutes)
 app.use('/api/prestamos', prestamoRoutes)
 app.use('/api/pagos', pagoRoutes)
 app.use('/api/notifications', notificationRoutes); // Registrar rutas de notificación
-
+app.use('/api/rooms', roomRoutes)
 // Servir archivos estáticos de React en producción
 /* if (process.env.NODE_ENV == 'production') { */
   // Ruta a los archivos estáticos del build de React

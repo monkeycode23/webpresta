@@ -64,21 +64,21 @@ const PaymentsPage: React.FC = () => {
 
   // Simulación de carga de préstamos para el filtro
   const fetchLoansForFilter = useCallback(async () => {
-    console.log("Attempting to fetch loans for filter. User ID:", user?._id);
+    //console.log("Attempting to fetch loans for filter. User ID:", user?._id);
     if (!user?._id) {
-      console.log("User ID not available, skipping fetchLoansForFilter.");
+      //console.log("User ID not available, skipping fetchLoansForFilter.");
       setAvailableLoans([]); // Asegurar que esté vacío si no hay usuario
       return;
     }
     // setIsLoading(true); // Podrías tener un loader específico para el filtro de préstamos
     
     try {
-      console.log("Inside try: fetching loans for filter"); // Corregido y mensaje modificado
+      //console.log("Inside try: fetching loans for filter"); // Corregido y mensaje modificado
       const response = await apiService.getLoansForUserFilter(); // LLAMADA REAL
-      console.log("Response from getLoansForUserFilter:", response);
+      //console.log("Response from getLoansForUserFilter:", response);
       setAvailableLoans(response || []); // response directamente es el array
     } catch (err: any) {
-      console.error("Error fetching loans for filter:", err);
+      //console.error("Error fetching loans for filter:", err);
       setError(err.message || "No se pudieron cargar los préstamos para el filtro.");
       setAvailableLoans([]); // Asegurar que sea un array vacío en caso de error
     }
@@ -86,11 +86,11 @@ const PaymentsPage: React.FC = () => {
   }, [user]); // fetchLoansForFilter depende de 'user'
 
   useEffect(() => {
-    console.log("useEffect for fetchLoansForFilter triggered. User:", user);
+    //console.log("useEffect for fetchLoansForFilter triggered. User:", user);
     if (user && user._id) { // Condición más explícita
         fetchLoansForFilter();
     } else {
-        console.log("User or user._id not present, clearing available loans.");
+        //console.log("User or user._id not present, clearing available loans.");
         setAvailableLoans([]); // Limpiar si el usuario se desloguea o no está presente
     }
   }, [user, fetchLoansForFilter]); // Dependencias actualizadas
@@ -177,7 +177,7 @@ const PaymentsPage: React.FC = () => {
           sortOrder: sortConfig.direction,
           userId: user._id
         };
-        console.log("Fetching payments with params:", params);
+        //console.log("Fetching payments with params:", params);
         
         const response = await apiService.getFilteredPayments(params); // LLAMADA REAL
         
@@ -186,7 +186,7 @@ const PaymentsPage: React.FC = () => {
         setTotalPages(response.totalPages || 0);
 
       } catch (err: any) {
-        console.error("Error fetching payments:", err);
+        //console.error("Error fetching payments:", err);
         setError(err.message || "No se pudieron cargar los pagos.");
         setPayments([]);
         setTotalPages(0);
