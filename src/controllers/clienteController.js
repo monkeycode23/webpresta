@@ -101,20 +101,20 @@ export const getResumenCliente = async (req, res) => {
     // Filtrar préstamos que no estén 'completed' o 'paid' (considera tus estados)
     const prestamosActivos = prestamos.filter(p => p.status &&  p.status !== 'completed');
 
-    console.log(prestamosActivos,"prestamosActivos")
+    //console.log(prestamosActivos,"prestamosActivos")
 
     if (prestamosActivos.length > 0) {
       let proximasCuotasGlobal = [];
-      console.log("asasd")
+      //console.log("asasd")
 
       for (const prestamo of prestamosActivos) {
         if (prestamo.payments && prestamo.payments.length > 0) {
           const cuotasPendientesDelPrestamo = prestamo.payments
             .filter(p => p.status === 'pending'  && new Date(p.payment_date) >= new Date())
             .sort((a, b) => new Date(a.payment_date).getTime() - new Date(b.payment_date).getTime());
-          console.log(cuotasPendientesDelPrestamo,"cuotasPendientesDelPrestamo")
+          //console.log(cuotasPendientesDelPrestamo,"cuotasPendientesDelPrestamo")
           if (cuotasPendientesDelPrestamo.length > 0) {
-            console.log(cuotasPendientesDelPrestamo,"cuotasPendientesDelPrestamo")
+            //console.log(cuotasPendientesDelPrestamo,"cuotasPendientesDelPrestamo")
             proximasCuotasGlobal.push({
               fecha: cuotasPendientesDelPrestamo[0].payment_date,
               monto: cuotasPendientesDelPrestamo[0].amount,
@@ -127,7 +127,7 @@ export const getResumenCliente = async (req, res) => {
       }
 
       if (proximasCuotasGlobal.length > 0) {
-        console.log(proximasCuotasGlobal,"proximasCuotasGlobal")
+        //console.log(proximasCuotasGlobal,"proximasCuotasGlobal")
         proximasCuotasGlobal.sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
         const proximoPagoMasCercano = proximasCuotasGlobal[0];
         
@@ -208,10 +208,10 @@ export const createCliente = async (req, res) => {
   try {
     const clienteData = req.body;
     
-    console.log(clienteData,"clienteData")
+    //console.log(clienteData,"clienteData")
     const query =await Cliente.findOne({nickname:clienteData.nickname ? clienteData.nickname : ""})
     
-    console.log(query,"query")
+    //console.log(query,"query")
     if(query){
       return res.status(400).json({type:"error",mensaje: 'El nombre de cliente ya está en uso' });
     }
@@ -256,26 +256,53 @@ export const updateCliente = async (req, res) => {
   }
 };
 
+
+// Lista blanca de campos permitidos
+const allowedFields = ['name', 'lastname', 'email', 'phone', 'address', 'cbu', 'aliasCbu'];
+
+// Función de sanitización y validación básica
+function sanitizeAndValidateBody(body) {
+  const cleanData = {};
+
+  for (const key of allowedFields) {
+    if (body[key] !== undefined) {
+      const value = body[key];
+
+      // Evitar inyecciones NoSQL: no se permiten objetos, solo strings o valores primitivos
+      if (typeof value === 'object' && value !== null) {
+        throw new Error(`Campo "${key}" no puede ser un objeto o contener operadores MongoDB.`);
+      }
+
+      // Evita strings con posibles operadores de MongoDB
+      if (typeof value === 'string' && value.includes('$')) {
+        throw new Error(`Campo "${key}" contiene caracteres inválidos.`);
+      }
+
+      cleanData[key] = value;
+    }
+  }
+
+  return cleanData;
+}
+
+
 // Actualizar perfil del cliente autenticado
 export const updateClienteProfile = async (req, res) => {
   try {
-    const clienteId = req.clienteId; // Obtenido del token JWT
-    const { nombre, apellido, telefono,email, direccion, cbu, aliasCbu } = req.body;
-
     console.log(req.body)
-    const updateData = {
-      name: nombre,
-      lastname: apellido,
-      email,
-      phone: telefono,
-      address: direccion,
-      cbu,
-      aliasCbu,
-    };
+    const clienteId = req.clienteId; // Obtenido del token JWT
+    const { name, lastname, email, phone, address, cbu, aliasCbu } = req.body;
+
+    //console.log(req.body)
+      const updateData = sanitizeAndValidateBody(req.body);
+        
 
     // Filtrar campos undefined para no sobrescribir con null
-    Object.keys(updateData).forEach(key => updateData[key] === undefined && delete updateData[key]);
+    Object.keys(updateData).forEach(key => {
+      if( updateData[key] === null) delete updateData[key]
+    });
 
+    console.log(updateData,"updateData")
     /* if (cbu) {
       // Verificar si el CBU ya está en uso por otro cliente
       const existingCbu = await Cliente.findOne({ cbu: cbu, _id: { $ne: clienteId } });
@@ -290,11 +317,13 @@ export const updateClienteProfile = async (req, res) => {
       { new: true, runValidators: true, context: 'query' }
     );
 
+
     if (!clienteActualizado) {
       return res.status(404).json({ mensaje: 'Cliente no encontrado' });
     }
 
-    res.json({ mensaje: 'Perfil actualizado correctamente', cliente: clienteActualizado });
+    console.log(clienteActualizado,"clienteActualizado")
+    res.json({type:"success", mensaje: 'Perfil actualizado correctamente', cliente: clienteActualizado });
   } catch (error) {
     console.error('Error al actualizar perfil del cliente:', error);
     if (error.code === 11000 && error.keyPattern && error.keyPattern.cbu) {
@@ -309,7 +338,7 @@ export const deleteCliente = async (req, res) => {
   try {
     const { id } = req.params; // Cambiado de id a clienteId para consistencia
 
-    console.log(req.params,"req.params")
+    //console.log(req.params,"req.params")
     const client_id = await Cliente.findOne({sqlite_id:id.toString()})
     // Encontrar y eliminar pagos y préstamos asociados al cliente
     if(!client_id) return res.status(404).json({ mensaje: 'Cliente no encontrado' });

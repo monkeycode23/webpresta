@@ -27,13 +27,13 @@ export const verificarToken = async (req, res, next) => {
     // Verificar el token
     const decoded = jwt.verify(token, JWT_SECRET);
     
-    console.log("decoded",decoded)
+    //console.log("decoded",decoded)
     // Buscar el cliente
     const id = typeof  decoded.id === "number" ? {sqlite_id:decoded.id} : {_id:decoded.id};
     const cliente = await Cliente.findOne(id);
     const user = await User.findOne(id);
 
-    console.log("cliente",cliente,"user",user)
+    //console.log("cliente",cliente,"user",user)
     if(!cliente && !user){
       return res.status(401).json({ mensaje: 'Cliente o usuario no encontrado.' });
     }
@@ -76,7 +76,7 @@ export const verificarToken = async (req, res, next) => {
 export const verificarPropietario = (req, res, next) => {
   try {
     const clienteIdParam = req.params.clienteId;
-    console.log(req.params)
+    //console.log(req.params)
     const clienteIdAuth = req.clienteId.toString();
     
     if (clienteIdParam !== clienteIdAuth) {

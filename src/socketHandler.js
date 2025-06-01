@@ -5,16 +5,20 @@ import { io as mainIo } from './index.js'; // Importar la instancia \`io\` princ
 import Room from './models/room.js'
 import Message from './models/message.js'
 const connectedUsers = new Map(); // Map to store clienteID -> socketID
-const JWT_SECRET = process.env.JWT_SECRET || 'prestaweb-secret-key'; // Align with authMiddleware
+const connectedClientes = new Map(); // Map to store clienteID -> socketID
 
+const JWT_SECRET = process.env.JWT_SECRET || 'prestaweb-secret-key'; // Align with authMiddleware
+import Notification from './models/notification.js';
 export default function initializeSocket(io) {
   io.use(async (socket, next) => {
     const token = socket.handshake.auth.token;
-    console.log(token)
+    console.log("token",token)
+    
+    
     if (token) {
       try {
         const decoded = jwt.verify(token, JWT_SECRET);
-        console.log(decoded)
+        console.log("decoded",decoded)
         
         
         let cliente 
@@ -24,12 +28,12 @@ export default function initializeSocket(io) {
           console.log(await User.find())
           console.log("sqlite_id",decoded.id.toString())
           
-          cliente = await User.findOne({sqlite_id:decoded.id.toString()});
+          cliente = await Cliente.findOne({sqlite_id:decoded.id.toString()});
           user = await User.findOne({sqlite_id:decoded.id.toString()})
           console.log(cliente)
           console.log(user)
 
-          if(!cliente){
+          if(!cliente && !user){
             const user  = new User({
               sqlite_id:decoded.id.toString(),
               username:decoded.username,
@@ -42,15 +46,20 @@ export default function initializeSocket(io) {
           }
 
         }else{
-          cliente = await Cliente.findOne({_id:socket.clienteId});
+          cliente = await Cliente.findOne({_id:decoded.id});
           user = await User.findOne({_id:decoded.id})
-          console.log(user)
+          console.log("user",user)
+          console.log("cliente",cliente)
         }
         if (!cliente && !user) {
           return next(new Error('Authentication error: Client not found.'));
         }
         // You might want to check if cliente.activo here as well
-        socket.clienteId =!cliente ? user._id : cliente._id; // Assuming JWT payload from your auth has 'id' for Cliente
+         // Assuming JWT payload from your auth has 'id' for Cliente
+        
+        if(cliente) socket.clienteId = cliente._id
+        if(user) socket.userId = user._id
+        
         next();
       } catch (err) {
         console.error('Socket authentication error:', err.message);
@@ -67,22 +76,88 @@ export default function initializeSocket(io) {
   io.on('connection', async(socket) => {
     console.log(`User connected: ${socket.id}, ClienteID: ${socket.clienteId || 'Anonymous'}`);
 
+    let _connectedClientes = Array.from(connectedClientes.keys())
+    let _connectedUsers = Array.from(connectedUsers.keys())
+    
     if (socket.clienteId) {
-      connectedUsers.set(socket.clienteId.toString(), socket.id);
-      console.log('Connected clients:', Array.from(connectedUsers.keys()));
+      connectedClientes.set(socket.clienteId.toString(), socket.id);
+      console.log('Connected clients:', Array.from(connectedClientes.keys()));
      // io.emit('userOnlineStatus', { userId: socket.clienteId, isOnline: true, onlineUsers: Array.from(connectedUsers.keys()) });
-     const user = await User.findOne({_id:socket.clienteId})
+     const cliente = await Cliente.findOne({_id:socket.clienteId})
+     if(cliente){
+      const clientes = await Cliente.find({ _id: { $in: _connectedClientes } });
+      const user = await User.findOne({_id:socket.userId})
+
+      socket.emit('userOnlineStatus', { clienteId: socket.clienteId, isOnline: true,
+        onlineClientes: clientes,
+        onlineUsers: user ? [user] : [] });
+     }
+      
+    }
+    if (socket.userId) {  
+      connectedUsers.set(socket.userId.toString(), socket.id);
+      console.log('Connected users:', Array.from(connectedUsers.keys()));
+     // io.emit('userOnlineStatus', { userId: socket.clienteId, isOnline: true, onlineUsers: Array.from(connectedUsers.keys()) });
+     const user = await User.findOne({_id:socket.userId})
+     
      if(user){
-      socket.emit('userOnlineStatus', { userId: socket.clienteId, isOnline: true, onlineUsers: Array.from(connectedUsers.keys()) });
+      const users = await User.find({ _id: { $in: _connectedUsers } });
+      const clientes = await Cliente.find({ _id: { $in: _connectedClientes } });
+
+      socket.emit('userOnlineStatus', { userId: socket.userId, isOnline: true, 
+        onlineUsers: users,
+        onlineClientes: clientes });
      }
       
     }
 
 
+    socket.on("update_client_profile",async(data)=>{
+      console.log("update_client_profile",data)
+      const users = await User.find()
+      
+
+      if(users.length){
+
+        users.forEach(async(user)=>{
+          console.log("user",user)
+          const notification = new Notification({
+            user_id:user._id,
+            message:"El/la cliente "+data.nickname+" ha actualizado su perfil",
+            room:null,
+            type:"profile_update",
+            sender_client_id:data._id,
+            link:"/clients/"+data.sqlite_id
+          })
+          await notification.save()
+          user.notification.push(notification._id)
+          await user.save()
+          console.log(user._id.toString())
+          console.log(connectedUsers)
+          if(connectedUsers.get(user._id.toString())){
+            console.log("user",user.username)
+           
+            
+            io.to(connectedUsers.get(user._id.toString())).emit('newNotification',{
+              _id:notification._id,
+              message:notification.message,
+              type:notification.type,
+              link:notification.link,
+              sender_client_id:notification.sender_client_id,
+              user_id:notification.user_id,
+              read:notification.read,
+
+            })
+          }
+        })
+        
+      }
+    })
+
     socket.on("joinRoom",async(data)=>{
       console.log("joinRoom",data)
       const room = await Room.findOne({_id:data.roomId})
-      const user = await User.findOne({_id:socket.clienteId})
+      const user = await User.findOne({_id:socket.userId})
       const client = await Cliente.findOne({_id:socket.clienteId})
 
       const isUserOrClient = user ? "user" : "client"
@@ -92,7 +167,7 @@ export default function initializeSocket(io) {
         await user.save()
 
         if(room){
-          room.connected_users.push(socket.clienteId)
+          room.connected_users.push(socket.userId)
           await room.save()
         }
         
@@ -215,7 +290,12 @@ export default function initializeSocket(io) {
       if (socket.clienteId) {
         connectedUsers.delete(socket.clienteId.toString());
         console.log('Connected clients after disconnect:', Array.from(connectedUsers.keys()));
-        io.emit('userOnlineStatus', { userId: socket.clienteId, isOnline: false, onlineUsers: Array.from(connectedUsers.keys()) });
+        io.emit('userOnlineStatus', { clienteId: socket.clienteId, isOnline: false, onlineUsers: Array.from(connectedUsers.keys()),onlineClientes: Array.from(connectedClientes.keys()) });
+      }
+      if (socket.userId) {
+        connectedUsers.delete(socket.userId.toString());
+        console.log('Connected users after disconnect:', Array.from(connectedUsers.keys()));
+        io.emit('userOnlineStatus', { userId: socket.userId, isOnline: false, onlineUsers: Array.from(connectedUsers.keys()),onlineClientes: Array.from(connectedClientes.keys()) });
       }
     });
   });

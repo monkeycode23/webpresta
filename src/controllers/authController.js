@@ -26,11 +26,12 @@ const accessCodeLogin=async(req,res,next)=>{
    
 
     try {
-         // console.log(req.body)
+          //console.log(req.body)
     // Buscar cliente por código de acceso
     const cliente = await Cliente.findOne({ codigoAcceso: codigoAcceso });
     
-    console.log(cliente);
+
+    //console.log(cliente);
     if (!cliente) {
       return res.status(401).json({ mensaje: 'Credenciales inválidas' });
     }

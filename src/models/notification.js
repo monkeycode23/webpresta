@@ -12,7 +12,12 @@ const notificationSchema = new mongoose.Schema({
   sender_user_id: { // El usuario que originó la notificación
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true,
+    
+  }, 
+  sender_client_id: { // El cliente que originó la notificación
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Cliente',
+    
   }, 
   type: {
     type: String,
@@ -41,6 +46,9 @@ const notificationSchema = new mongoose.Schema({
 // Índices para mejorar el rendimiento de las consultas
 notificationSchema.index({ user_id: 1, read: 1, created_at: -1 });
 notificationSchema.index({ client_id: 1, read: 1, created_at: -1 });
+notificationSchema.index({ sender_user_id: 1, read: 1, created_at: -1 });
+notificationSchema.index({ sender_client_id: 1, read: 1, created_at: -1 });
+
 
 const Notification = mongoose.model('Notification', notificationSchema);
 

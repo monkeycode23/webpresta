@@ -8,9 +8,14 @@ class SocketService {
   connect(): void {
     if (!this.socket || !this.socket.connected) {
       console.log('Attempting to connect to WebSocket server...');
-      this.socket = io(SOCKET_URL, {
-        transports: ['websocket'],
-      });
+      this.socket = io(SOCKET_URL,{
+        reconnectionAttempts: 5,
+        reconnectionDelay: 3000,
+        transports: ['websocket'], // Prefer WebSocket
+        auth: {
+          token: localStorage.getItem('authToken')
+        }
+      })
 
       this.socket.on('connect', () => {
         console.log('Socket connected:', this.socket?.id);

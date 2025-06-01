@@ -110,9 +110,35 @@ WHERE client_id NOT IN (SELECT id FROM clients);
 console.log(q)
 process.exit() */
 
-
+async function  addColumn(tableName,column,query) {
+  try {
+    
+    const columns = await db.all(`PRAGMA table_info(${tableName})`);
+    //const columns = pragmaStmt.all();
+    console.log(columns);
+    const existe = columns.some((col) => col.name === column.trim());
+    console.log(existe)
+    if (!existe) {
+      db.exec(`ALTER TABLE ${tableName} ADD COLUMN ${column.trim()} ${query};`);
+      console.log(
+        `Columna "${column}" agregada a la tabla "${tableName}".`
+      );
+    } else {
+      console.log(
+        `La columna "${column}" ya existe en la tabla "${tableName}".`
+      );
+    }
+   
+  } catch (error) {
+    console.log(error)
+  }
+}
 
 try {
+
+
+addColumn("clients","access_code","TEXT")
+  
   const users = await db.all("SELECT * FROM users ")
 
 console.log(`Usuarios encontrados ${users.length} \n`)
@@ -153,6 +179,7 @@ if(users.length){
 console.log("pagos de leo eliminados") */
 
 const q = await db.exec(`UPDATE payments SET paid_date=NULL WHERE paid_date = 'null' `)
+
 console.log("pagos de leo eliminados")
     // Migrar Clientes
     const clients = await db.all("SELECT * FROM clients");
@@ -168,6 +195,9 @@ console.log("pagos de leo eliminados")
           isUnique = true;
         }
       }
+
+      await db.exec(`UPDATE clients SET access_code='${codigoAcceso}' user_id=${1} WHERE id=${client.id} `)
+
 
       const cliente = new Cliente({
         sqlite_id: String(client.id),

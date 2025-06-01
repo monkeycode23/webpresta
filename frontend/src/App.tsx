@@ -11,11 +11,12 @@ import PaymentsPage from './pages/PaymentsPage';
 import ProfilePage from './pages/ProfilePage';
 import NotFoundPage from './pages/NotFoundPage';
 import Navigation from './components/Navigation';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 interface PrivateRouteProps {
   children: React.ReactNode;
 }
-
 const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();
   if (isLoading) {
@@ -32,6 +33,7 @@ const App: React.FC = () => {
     <AuthProvider>
       <NotificationProvider>
         <AppContent />
+        <ToastContainer />
       </NotificationProvider>
     </AuthProvider>
   );
