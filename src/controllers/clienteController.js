@@ -71,53 +71,117 @@ export const getResumenCliente = async (req, res) => {
       return res.status(404).json({ mensaje: 'Cliente no encontrado' });
     }
     
-    // Obtener préstamos
+    // Obtener préstamos con sus pagos populados
     const prestamos = await Prestamo.find({ client_id: clienteId }).populate('payments');
     
-    // Obtener pagos
-    
-    //const pagos = await prestamos.find({ loan_id: clienteId }).
-    
-  
-  
-    // Calcular totales
     const totalPrestamos = prestamos.length;
     const totalPrestado = prestamos.reduce((sum, prestamo) => sum + prestamo.amount, 0);
-    //console.log(totalPagado);
-    const totalPendiente = prestamos.reduce((sum, prestamo) => sum + 
-    prestamo.payments.filter(pago => pago.status !== 'Completado').reduce((sum, pago) => sum + pago.amount, 0)
-    , 0);
-    const totalPagado = totalPrestado - totalPendiente;
+
+    let totalPagadoReal = 0;
+    let totalPendienteReal = 0;
+
+    prestamos.forEach(prestamo => {
+      if (prestamo.payments && prestamo.payments.length > 0) {
+        prestamo.payments.forEach(pago => {
+          if (pago.status && (pago.status.toLowerCase() === 'paid' || pago.status.toLowerCase() === 'completado')) {
+            totalPagadoReal += pago.amount;
+          } else if (pago.status && pago.status.toLowerCase() !== 'paid' && pago.status.toLowerCase() !== 'completado') {
+            // Consideramos pendiente cualquier cosa que no sea 'paid' o 'completado'
+            // Aquí podrías ser más específico si tienes otros estados como 'anulado' que no cuentan como pendiente.
+            totalPendienteReal += pago.amount; 
+          }
+        });
+      }
+    });
  
+    // --- INICIO: Lógica para calcular la próxima fecha de pago general ---
+    let proximaFechaPagoGeneral = null;
+    let detalleProximoPago = null;
+
+    // Filtrar préstamos que no estén 'completed' o 'paid' (considera tus estados)
+    const prestamosActivos = prestamos.filter(p => p.status &&  p.status !== 'completed');
+
+    console.log(prestamosActivos,"prestamosActivos")
+
+    if (prestamosActivos.length > 0) {
+      let proximasCuotasGlobal = [];
+      console.log("asasd")
+
+      for (const prestamo of prestamosActivos) {
+        if (prestamo.payments && prestamo.payments.length > 0) {
+          const cuotasPendientesDelPrestamo = prestamo.payments
+            .filter(p => p.status === 'pending'  && new Date(p.payment_date) >= new Date())
+            .sort((a, b) => new Date(a.payment_date).getTime() - new Date(b.payment_date).getTime());
+          console.log(cuotasPendientesDelPrestamo,"cuotasPendientesDelPrestamo")
+          if (cuotasPendientesDelPrestamo.length > 0) {
+            console.log(cuotasPendientesDelPrestamo,"cuotasPendientesDelPrestamo")
+            proximasCuotasGlobal.push({
+              fecha: cuotasPendientesDelPrestamo[0].payment_date,
+              monto: cuotasPendientesDelPrestamo[0].amount,
+              prestamoLabel: prestamo.label || `Préstamo ${prestamo._id.toString().substring(0,6)}`,
+              cuotaLabel: cuotasPendientesDelPrestamo[0].label || `Cuota ${cuotasPendientesDelPrestamo[0].installment_number || ''}`.trim(),
+              prestamoId: prestamo._id
+            });
+          }
+        }
+      }
+
+      if (proximasCuotasGlobal.length > 0) {
+        console.log(proximasCuotasGlobal,"proximasCuotasGlobal")
+        proximasCuotasGlobal.sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
+        const proximoPagoMasCercano = proximasCuotasGlobal[0];
+        
+        proximaFechaPagoGeneral = proximoPagoMasCercano.fecha;
+        
+        detalleProximoPago = {
+          prestamoLabel: proximoPagoMasCercano.prestamoLabel,
+          cuotaLabel: proximoPagoMasCercano.cuotaLabel,
+          monto: proximoPagoMasCercano.monto,
+          prestamoId: proximoPagoMasCercano.prestamoId
+        };
+      }
+    }
+    // --- FIN: Lógica para calcular la próxima fecha de pago general ---
    
-   
-    // Crear resumen
+    const pagosRecientesLista = prestamos.flatMap(prestamo => 
+        prestamo.payments ? prestamo.payments.map(p => ({ 
+          ...(p.toObject ? p.toObject() : p), // Manejar si p es un doc de Mongoose o ya un objeto
+          prestamoLabel: prestamo.label || `Préstamo ${prestamo._id.toString().substring(0,6)}`,
+          prestamoId: prestamo._id,
+          // Asegúrate que payment_date y paid_date existen y son válidos para ordenar
+          fechaOrdenamiento: p.paid_date || p.payment_date || p.updated_at 
+        })) : []
+      )
+      .filter(p => p.status && (p.status.toLowerCase() === 'paid' || p.status.toLowerCase() === 'completado'))
+      .sort((a,b) => new Date(b.fechaOrdenamiento).getTime() - new Date(a.fechaOrdenamiento).getTime())
+      .slice(0, 5);
+
     const resumen = {
       cliente: {
         id: cliente._id,
-        nickname:cliente.nickname,
-        nombre: cliente.nickname,
-        apellido: cliente.apellido,
+        nombre: cliente.name || cliente.nickname,
+        apellido: cliente.lastname,
         email: cliente.email
       },
       prestamos: {
-        prestamos: prestamos,
         total: totalPrestamos,
-        activos: prestamos.filter(p => p.status !== 'Pagado').length,
-        pagados: prestamos.filter(p => p.status === 'Pagado').length
+        activos: prestamosActivos.length, // Usar la cuenta de prestamosActivos ya filtrada
+        pagados: prestamos.filter(p => p.status && (p.status.toLowerCase() === 'completed' || p.status.toLowerCase() === 'paid')).length
       },
       montos: {
         totalPrestado,
-        totalPagado,
-        totalPendiente
+        totalPagado: totalPagadoReal,
+        totalPendiente: totalPendienteReal
       },
-      pagosRecientes: prestamos.flatMap(prestamo => prestamo.payments)
+      pagosRecientes: pagosRecientesLista,
+      proximaFechaPagoGeneral,
+      detalleProximoPago,
     };
     
     res.json(resumen);
   } catch (error) {
     console.error('Error al obtener resumen del cliente:', error);
-    res.status(500).json({ mensaje: 'Error del servidor' });
+    res.status(500).json({ mensaje: 'Error del servidor', detalle: error.message });
   }
 };
 
@@ -144,6 +208,15 @@ export const createCliente = async (req, res) => {
   try {
     const clienteData = req.body;
     
+    console.log(clienteData,"clienteData")
+    const query =await Cliente.findOne({nickname:clienteData.nickname ? clienteData.nickname : ""})
+    
+    console.log(query,"query")
+    if(query){
+      return res.status(400).json({type:"error",mensaje: 'El nombre de cliente ya está en uso' });
+    }
+    
+    
     // Generar código de acceso único de 5 dígitos si no se proporciona
     if (!clienteData.codigoAcceso) {
       // Generar un número aleatorio entre 10000 y 99999
@@ -156,7 +229,7 @@ export const createCliente = async (req, res) => {
     res.status(201).json(savedCliente);
   } catch (error) {
     console.error('Error al crear cliente:', error);
-    res.status(500).json({ mensaje: 'Error del servidor' });
+    res.status(500).j77son({ mensaje: 'Error del servidor' });
   }
 };
 
@@ -183,30 +256,82 @@ export const updateCliente = async (req, res) => {
   }
 };
 
+// Actualizar perfil del cliente autenticado
+export const updateClienteProfile = async (req, res) => {
+  try {
+    const clienteId = req.clienteId; // Obtenido del token JWT
+    const { nombre, apellido, telefono,email, direccion, cbu, aliasCbu } = req.body;
+
+    console.log(req.body)
+    const updateData = {
+      name: nombre,
+      lastname: apellido,
+      email,
+      phone: telefono,
+      address: direccion,
+      cbu,
+      aliasCbu,
+    };
+
+    // Filtrar campos undefined para no sobrescribir con null
+    Object.keys(updateData).forEach(key => updateData[key] === undefined && delete updateData[key]);
+
+    /* if (cbu) {
+      // Verificar si el CBU ya está en uso por otro cliente
+      const existingCbu = await Cliente.findOne({ cbu: cbu, _id: { $ne: clienteId } });
+      if (existingCbu) {
+        return res.status(400).json({ mensaje: 'El CBU ingresado ya está registrado por otro usuario.' });
+      }
+    } */
+
+    const clienteActualizado = await Cliente.findByIdAndUpdate(
+      clienteId,
+      { $set: updateData },
+      { new: true, runValidators: true, context: 'query' }
+    );
+
+    if (!clienteActualizado) {
+      return res.status(404).json({ mensaje: 'Cliente no encontrado' });
+    }
+
+    res.json({ mensaje: 'Perfil actualizado correctamente', cliente: clienteActualizado });
+  } catch (error) {
+    console.error('Error al actualizar perfil del cliente:', error);
+    if (error.code === 11000 && error.keyPattern && error.keyPattern.cbu) {
+      return res.status(400).json({ mensaje: 'El CBU ingresado ya está en uso.' });
+    }
+    res.status(500).json({ mensaje: 'Error del servidor al actualizar el perfil' });
+  }
+};
+
 // Eliminar cliente
 export const deleteCliente = async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params; // Cambiado de id a clienteId para consistencia
+
+    console.log(req.params,"req.params")
+    const client_id = await Cliente.findOne({sqlite_id:id.toString()})
+    // Encontrar y eliminar pagos y préstamos asociados al cliente
+    if(!client_id) return res.status(404).json({ mensaje: 'Cliente no encontrado' });
+
+
+    const prestamos = await Prestamo.find({ client_id: client_id._id });
     
-    // Verificar si el cliente tiene préstamos activos
-    const prestamosActivos = await Prestamo.find({
-      client_id: id,
-      status: { $in: ['En curso', 'Aprobado'] }
-    });
-    
-    if (prestamosActivos.length > 0) {
-      return res.status(400).json({
-        mensaje: 'No se puede eliminar el cliente porque tiene préstamos activos'
-      });
+    for (const prestamo of prestamos) {
+      // Eliminar pagos asociados al préstamo
+      await Pago.deleteMany({ loan_id: prestamo._id });
+      // Eliminar el préstamo
+      await Prestamo.findByIdAndDelete(prestamo._id);
     }
-    
-    const cliente = await Cliente.findByIdAndDelete(id);
+
+    // Eliminar el cliente
+    const cliente = await Cliente.findByIdAndDelete(client_id._id);
     
     if (!cliente) {
       return res.status(404).json({ mensaje: 'Cliente no encontrado' });
     }
-    
-    res.json({ mensaje: 'Cliente eliminado exitosamente' });
+
+    res.json({ mensaje: 'Cliente, sus préstamos y pagos asociados eliminados correctamente' });
   } catch (error) {
     console.error('Error al eliminar cliente:', error);
     res.status(500).json({ mensaje: 'Error del servidor' });

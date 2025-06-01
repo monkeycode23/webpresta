@@ -27,11 +27,11 @@ const clienteSchema = new mongoose.Schema({
   },
   phone: {
     type: String,
-    trim: true
+    //trim: true
   },
   address: {
     type: String,
-    trim: true
+    //trim: true
   },
   status: {
     type: String,
@@ -51,9 +51,10 @@ const clienteSchema = new mongoose.Schema({
   },
   cbu: {
     type: String,
-    trim: true
+    trim: true,
+    sparse: true
   },
-  alias: {
+  aliasCbu: {
     type: String,
     trim: true
   },
@@ -66,10 +67,19 @@ const clienteSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   },
+  isConnected: Boolean,
   loans: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Prestamo'
-  }]
+  }],
+  rooms: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Room'
+  }],
+  notification: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Notification'
+  }]	
 }, {
   timestamps: {
     createdAt: 'created_at',

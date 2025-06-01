@@ -8,11 +8,16 @@ interface AuthProviderProps {
 }
 
 interface Cliente {
-  id: string;
-  nombre: string;
-  apellido: string;
+  _id: string;
+  nickname: string;
+  name: string;
+  lastname: string;
   email: string;
   codigoAcceso: string;
+  phone?: string;
+  address?: string;
+  cbu?: string;
+  aliasCbu?: string;
 }
 
 interface AuthContextType {
@@ -57,7 +62,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       value={{
         isAuthenticated,
         isLoading,
-        user,
+        user: user as Cliente | null,
         token,
         login: handleLogin,
         logout: handleLogout,
