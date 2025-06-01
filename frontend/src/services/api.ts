@@ -213,6 +213,7 @@ const apiService = {
   },
   
   updateProfile: async (profileData: Partial<Cliente>) => {
+    console.log(profileData)
     const response = await api.put('/clientes/profile', profileData);
     return response.data;
   },

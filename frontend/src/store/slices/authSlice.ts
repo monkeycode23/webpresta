@@ -1,7 +1,7 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import axios from 'axios';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:4000/api';
+const API_BASE_URL = /* process.env.REACT_APP_API_URL || */ 'http://localhost:4000/api';
 
 export interface Cliente {
   id: string;
@@ -39,13 +39,13 @@ export const login = createAsyncThunk(
       const response = await axios.post(`${API_BASE_URL}/auth/login`, { codigoAcceso });
       const { token, cliente } = response.data;
       
-      console.log(response.data)
+      //console.log(response.data)
       // Guardar token en localStorage
       localStorage.setItem('authToken', token);
       
       // Configurar el token en axios para futuras peticiones
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      console.log(token)
+      //console.log(token)
       
       return { token, cliente };
     } catch (error: any) {
