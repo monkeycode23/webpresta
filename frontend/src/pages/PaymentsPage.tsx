@@ -86,11 +86,11 @@ const PaymentsPage: React.FC = () => {
   }, [user]); // fetchLoansForFilter depende de 'user'
 
   useEffect(() => {
-    //console.log("useEffect for fetchLoansForFilter triggered. User:", user);
+    console.log("useEffect for fetchLoansForFilter triggered. User:", user);
     if (user && user._id) { // Condición más explícita
         fetchLoansForFilter();
     } else {
-        //console.log("User or user._id not present, clearing available loans.");
+        console.log("User or user._id not present, clearing available loans.");
         setAvailableLoans([]); // Limpiar si el usuario se desloguea o no está presente
     }
   }, [user, fetchLoansForFilter]); // Dependencias actualizadas
@@ -180,7 +180,7 @@ const PaymentsPage: React.FC = () => {
         //console.log("Fetching payments with params:", params);
         
         const response = await apiService.getFilteredPayments(params); // LLAMADA REAL
-        
+        console.log("response",response)
         // Ajuste aquí: la respuesta ya es el objeto FilteredPaymentsResponse
         setPayments(response.payments || []); 
         setTotalPages(response.totalPages || 0);
@@ -196,10 +196,13 @@ const PaymentsPage: React.FC = () => {
   }, [user?._id, currentPage, startDate, endDate, statusFilter, selectedLoanId, sortConfig]);
 
   useEffect(() => {
+   // console.log("useEffect for fetchPayments triggered. User:", user);
     if (user?._id) {
+     // console.log("useEffect for fetchPayments triggered. User:", user);
       fetchPayments();
     } else {
       // Si no hay usuario, limpiar los pagos y resetear la paginación
+      console.log("useEffect for fetchPayments triggered. User not present, clearing payments.");
       setPayments([]);
       setTotalPages(0);
       setCurrentPage(1);
@@ -268,10 +271,10 @@ const PaymentsPage: React.FC = () => {
               className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm h-[42px]"
             >
               <option value="">Todos</option>
-              <option value="pagado">Pagado</option>
-              <option value="pendiente">Pendiente</option>
-              <option value="vencido">Vencido</option>
-              <option value="incompleto">Incompleto</option>
+              <option value="paid">Pagado</option>
+              <option value="pending">Pendiente</option>
+              <option value="expired">Vencido</option>
+              <option value="incomplete">Incompleto</option>
             </select>
           </div>
           <div>

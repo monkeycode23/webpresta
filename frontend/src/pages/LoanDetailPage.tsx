@@ -95,7 +95,7 @@ const LoanDetailPage: React.FC = () => {
       case 'vencido':
         return 'Vencido';
       case 'active':
-        return 'Activo';
+        return 'En Curso';
       default:
         return status || 'Desconocido';
     }

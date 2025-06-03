@@ -140,9 +140,9 @@ export interface PagosHistorialResponse {
 }
 
 // Configuración de axios
-const API_BASE_URL =  process.env.REACT_APP_API_URL 
+const API_BASE_URL =  /* process.env.REACT_APP_API_URL  */ 'http://localhost:4000/api'
 
-//||  'http://localhost:4000/api';
+//||  ;
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -270,16 +270,22 @@ const apiService = {
       Object.entries(params).filter(([, value]) => value !== undefined)
     );
     const queryString = new URLSearchParams(queryParams as Record<string, string>).toString();
-    const response = await api.get<FilteredPaymentsResponse>(`/payments/my-payments?${queryString}`);
+    const response = await api.get<FilteredPaymentsResponse>(`/pagos/my-payments?${queryString}`);
     return response.data;
   },
 
   getLoansForUserFilter: async (): Promise<LoanForFilter[]> => {
     console.log("fetching loans for filter3")
     // El userId se infiere del token en el backend, por lo que no se pasa como parámetro aquí.
-    const response = await api.get<LoanForFilter[]>('/loans/for-filter');
+    try {
+      const response = await api.get<LoanForFilter[]>('/prestamos/for-filter');
     console.log(response)
     return response.data;
+    } catch (error) {
+      console.log("Error fetching loans for filter",error)
+      return []
+    }
+    
   },
   
   getProfile: async (): Promise<Cliente> => {
