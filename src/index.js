@@ -26,8 +26,8 @@ const __dirname = path.dirname(__filename)
 // Configuración de variables de entorno
 const PORT = process.env.PORT || 4000
 //const uri = "mongodb+srv://wtf2233:wwfXaR1e1cOsBWZv@cluster0.2yipgj7.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
-const MONGODB_URI =  process.env.MONGODB_URI ||   "mongodb://localhost:27017/prestaweb"
- 
+const MONGODB_URI =  process.env.MONGODB_URI2 
+ //||   "mongodb://localhost:27017/prestaweb"
 // Inicializar la aplicación Express
 const app = express()
 const httpServer = createServer(app); // Crear servidor HTTP para Socket.IO

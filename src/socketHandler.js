@@ -9,31 +9,37 @@ const connectedClientes = new Map(); // Map to store clienteID -> socketID
 
 const JWT_SECRET = process.env.JWT_SECRET || 'prestaweb-secret-key'; // Align with authMiddleware
 import Notification from './models/notification.js';
+
+
+
+
 export default function initializeSocket(io) {
+  
+  
   io.use(async (socket, next) => {
     const token = socket.handshake.auth.token;
-    console.log("token",token)
-    
+    //console.log("token",token)
     
     if (token) {
       try {
         const decoded = jwt.verify(token, JWT_SECRET);
-        console.log("decoded",decoded)
+        //console.log("decoded",decoded)
         
         
         let cliente 
         let user 
         
         if(typeof decoded.id === "number"){
-          console.log(await User.find())
-          console.log("sqlite_id",decoded.id.toString())
+          //console.log(await User.find())
+          //console.log("sqlite_id",decoded.id.toString())
           
           cliente = await Cliente.findOne({sqlite_id:decoded.id.toString()});
           user = await User.findOne({sqlite_id:decoded.id.toString()})
-          console.log(cliente)
-          console.log(user)
+          //console.log(cliente)
+          //console.log(user)
 
           if(!cliente && !user){
+            
             const user  = new User({
               sqlite_id:decoded.id.toString(),
               username:decoded.username,
@@ -48,8 +54,8 @@ export default function initializeSocket(io) {
         }else{
           cliente = await Cliente.findOne({_id:decoded.id});
           user = await User.findOne({_id:decoded.id})
-          console.log("user",user)
-          console.log("cliente",cliente)
+          //console.log("user",user)
+          //console.log("cliente",cliente)
         }
         if (!cliente && !user) {
           return next(new Error('Authentication error: Client not found.'));
@@ -84,13 +90,14 @@ export default function initializeSocket(io) {
       console.log('Connected clients:', Array.from(connectedClientes.keys()));
      // io.emit('userOnlineStatus', { userId: socket.clienteId, isOnline: true, onlineUsers: Array.from(connectedUsers.keys()) });
      const cliente = await Cliente.findOne({_id:socket.clienteId})
+     
      if(cliente){
       const clientes = await Cliente.find({ _id: { $in: _connectedClientes } });
-      const user = await User.findOne({_id:socket.userId})
+      const users = await User.find({_id:{$in:_connectedUsers}})
 
       socket.emit('userOnlineStatus', { clienteId: socket.clienteId, isOnline: true,
-        onlineClientes: clientes,
-        onlineUsers: user ? [user] : [] });
+        onlineClientes: clientes.length ? clientes : [],
+        onlineUsers: users.length ? users : [] });
      }
       
     }
@@ -105,8 +112,8 @@ export default function initializeSocket(io) {
       const clientes = await Cliente.find({ _id: { $in: _connectedClientes } });
 
       socket.emit('userOnlineStatus', { userId: socket.userId, isOnline: true, 
-        onlineUsers: users,
-        onlineClientes: clientes });
+        onlineUsers: users.length ? users : [],
+        onlineClientes: clientes.length ? clientes : [] });
      }
       
     }
@@ -326,3 +333,9 @@ export function sendNotificationToUser(clienteId, notificationData) {
     // o si ya tienes un sistema de notificaciones persistentes, asegurar que se guarde.
   }
 } 
+
+
+//const uri = ;
+
+//pepelepu23
+//

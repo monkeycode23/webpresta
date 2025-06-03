@@ -1,6 +1,6 @@
 import io, { Socket } from 'socket.io-client';
 
-const SOCKET_URL =  process.env.REACT_APP_API_URL ||  'http://localhost:4000'; // Asegúrate que la URL es correcta y accesible
+const SOCKET_URL =  process.env.REACT_APP_SOCKET_URL ||  'http://localhost:4000'; // Asegúrate que la URL es correcta y accesible
 
 class SocketService {
   private socket: Socket | null = null;
