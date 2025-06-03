@@ -41,21 +41,27 @@ export interface Prestamo {
 export interface Pago {
   _id: string;
   prestamo: string | Prestamo;
-  prestamoLabel: string;
-  prestamoId: string;
-  cliente: string;
-  incomplete_amount: number;
+  prestamoLabel?: string;
+  prestamoId?: string;
+  cliente?: string;
+  incomplete_amount?: number;
   amount: number;
-  paid_date: string;
-  loan_label:string;
-  created_at: string;
-  updated_at: string;
-  reference: string;
-  notes: string;
+  paid_date?: string;
+  loan_label?: string;
+  created_at?: string;
+  updated_at?: string;
+  reference?: string;
+  notes?: string;
   payment_date: string;
   installment_number: number;
   payment_method: string;
-  comprobante?: string;
+  comprobantes?: Array<{
+    _id?: string;
+    public_id: string;
+    url: string;
+    filename?: string;
+    uploadedAt?: string; 
+  }>;
   status: string;
   comments?: string;
   label?: string;
@@ -175,7 +181,7 @@ interface FilteredPaymentsParams {
   loanId?: string;
   sortBy: string;
   sortOrder: string;
-  userId: string;
+  //userId: string;
 }
 
 // Interfaz para la respuesta de getFilteredPayments (ajusta según tu backend)
@@ -291,6 +297,33 @@ const apiService = {
   getProfile: async (): Promise<Cliente> => {
     const response = await api.get<Cliente>('/users/profile');
     return response.data;
+  },
+
+  uploadPaymentProof: async (pagoId: string, file: File): Promise<any> => {
+    const formData = new FormData();
+    formData.append('comprobanteFile', file); // 'comprobanteFile' debe coincidir con upload.single() en el backend
+
+    try {
+      const response = await api.post(`/pagos/${pagoId}/upload-proof`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error uploading payment proof:', error);
+      throw error;
+    }
+  },
+
+  deletePaymentProof: async (pagoId: string, comprobanteCloudinaryId: string): Promise<any> => {
+    try {
+      const response = await api.delete(`/pagos/${pagoId}/comprobantes/${comprobanteCloudinaryId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error deleting payment proof:', error);
+      throw error;
+    }
   },
 };
 

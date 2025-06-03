@@ -6,9 +6,12 @@ import {
   createPago, 
   updatePago, 
   deletePago, 
-  getFilteredUserPayments 
+  getFilteredUserPayments,
+  uploadComprobantePago,
+  deleteComprobantePago
 } from '../controllers/pagoController.js';
 import { verificarToken, verificarPropietario } from '../middleware/authMiddleware.js';
+import upload from '../middleware/multerConfig.js'; // Importar multer
 
 const router = Router();
 
@@ -42,6 +45,10 @@ const verificarDuenoPago = async (req, res, next) => {
   }
 };
 
+// Nueva ruta para obtener pagos filtrados del usuario autenticado
+// GET /api/pagos/my-payments?page=1&limit=10&status=pendiente&sortBy=payment_date&sortOrder=desc
+router.get('/my-payments', verificarToken, getFilteredUserPayments);
+
 // Ruta para obtener pago por ID (protegida)
 router.get('/:id', [verificarToken, verificarDuenoPago], getPagoById);
 
@@ -56,8 +63,20 @@ router.post('/', verificarToken, createPago);
 router.put('/:pagoId', verificarToken, updatePago);
 router.delete('/:pagoId', verificarToken, deletePago);
 
-// Nueva ruta para obtener pagos filtrados del usuario autenticado
-// GET /api/pagos/my-payments?page=1&limit=10&status=pendiente&sortBy=payment_date&sortOrder=desc
-router.get('/my-payments', verificarToken, getFilteredUserPayments);
+// Nueva ruta para subir comprobante de pago
+router.post(
+  '/:pagoId/upload-proof',
+  verificarToken, 
+  upload.single('comprobanteFile'), // 'comprobanteFile' será el nombre del campo en FormData
+  uploadComprobantePago
+);
+
+// Nueva ruta para borrar un comprobante de pago específico
+router.delete(
+  '/:pagoId/comprobantes/:comprobanteCloudinaryId',
+  verificarToken,
+  deleteComprobantePago
+);
+
 
 export default router; 

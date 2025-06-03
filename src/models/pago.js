@@ -87,11 +87,6 @@ const pagoSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
-  payment_proof: {
-    url: String,
-    type: String,
-    upload_date: Date
-  },
   notes: {
     type: String,
     trim: true
@@ -103,7 +98,13 @@ const pagoSchema = new mongoose.Schema({
   user_id: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
-  }
+  },
+  comprobantes: [{
+    public_id: { type: String, required: true },
+    url: { type: String, required: true },
+    filename: { type: String },
+    uploadedAt: { type: Date, default: Date.now }
+  }]
 }, {
   timestamps: {
     createdAt: 'created_at',

@@ -262,23 +262,32 @@ export const deletePrestamo = async (req, res) => {
     console.error('Error al eliminar préstamo:', error);
     res.status(500).json({ mensaje: 'Error del servidor' });
   }
-};
+}; 
 
 // Nuevo: Obtener préstamos para el filtro de la página de pagos
 export const getLoansForFilter = async (req, res) => {
     try {
-      console.log("getLoansForFilter")
-        const userId = req.user._id; 
-        const loans = await Prestamo.find({ client_id: userId })
+      // console.log(req) // Comentado para limpiar logs
+      // console.log("getLoansForFilter") // Comentado para limpiar logs
+        const clienteIdFromAuth = req.user?._id || req.clienteId; // Usar req.clienteId como fallback
+        console.log( "clienteIdFromAuth", clienteIdFromAuth)
+        if (!clienteIdFromAuth) {
+            return res.status(400).json({ message: "No se pudo determinar el ID del cliente desde el token." });
+        }
+        
+        // Corregir el campo de búsqueda a 'cliente' según el modelo Prestamo.js (que usa 'cliente' y no 'client_id')
+        const loans = await Prestamo.find({ client_id: clienteIdFromAuth }) 
                                 .select('_id label') 
                                 .lean(); 
         
+        console.log( "loans", loans)
         const processedLoans = loans.map(loan => ({
             _id: loan._id.toString(),
             label: loan.label || `Préstamo ${loan._id.toString().substring(0,6)}` 
         }));
 
-        console.log(processedLoans)
+        console.log( "processedLoans", processedLoans)
+        // console.log(processedLoans) // Comentado para limpiar logs
         res.json(processedLoans); 
 
     } catch (error) {

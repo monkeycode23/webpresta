@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import apiService, { ResumenCliente, Pago } from '../services/api';
 import LoadingSpinner from '../components/LoadingSpinner';
 import PaymentModal from '../components/PaymentModal';
+import { Paperclip, HelpCircle } from 'lucide-react';
 const DashboardPage: React.FC = () => {
   const { user } = useAuth();
   const [resumen, setResumen] = useState<ResumenCliente | null>(null);
@@ -248,6 +249,18 @@ const DashboardPage: React.FC = () => {
                         <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusClass(pago.status)}`}>
                           {translateStatusToSpanish(pago.status)}
                         </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                        {pago.comprobantes && pago.comprobantes.length > 0 ? (
+                          <span title="Tiene comprobantes">
+                          <Paperclip size={16} className="text-gray-500" />
+                        </span>
+                        ) : (
+                          <span className="w-[16px] inline-block" title="Sin comprobantes">
+              {/* Puedes poner un ícono placeholder o dejarlo vacío */}
+               <HelpCircle size={16} className="text-gray-300" /> 
+            </span> 
+                        )}
                       </td>
                     </tr>
                 ))}

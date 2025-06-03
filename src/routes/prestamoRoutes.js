@@ -43,12 +43,13 @@ const verificarDuenoPrestamo = async (req, res, next) => {
 };
 
 // Rutas protegidas
+router.get('/for-filter', verificarToken, getLoansForFilter);
+
 router.post('/', verificarToken, createPrestamo);
 router.get('/:prestamoId', verificarToken, getPrestamoById);
 router.put('/:prestamoId', verificarToken, updatePrestamo);
 router.delete('/:prestamoId', verificarToken, deletePrestamo);
 router.get('/:prestamoId/detalle', verificarToken, getDetallePrestamoConPagos);
 router.get('/:prestamoId/pagos', verificarToken, getPagosPrestamo);
-router.get('/for-filter', verificarToken, getLoansForFilter);
 
 export default router; 

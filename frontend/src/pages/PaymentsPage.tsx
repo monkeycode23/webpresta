@@ -1,28 +1,40 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+// import { Link } from 'react-router-dom'; // Eliminado por no usarse
 import { useAuth } from '../context/AuthContext'; // Activado
-import apiService, { /* Pago as ApiPago */ } from '../services/api'; // ApiPago comentado para definir localmente
+import apiService, { Prestamo } from '../services/api'; // Importar Prestamo de api.ts
 import LoadingSpinner from '../components/LoadingSpinner';
+import PaymentModal from '../components/PaymentModal'; // Importar el modal de pago
+import ReusableTable, { Column } from '../components/ReusableTable'; // Importar la tabla reutilizable
+import { Paperclip, Eye, HelpCircle } from 'lucide-react'; // HelpCircle eliminado por no usarse
 // import DatePicker from 'react-datepicker'; // Se añadirá si se implementa un selector de fecha específico
 // import 'react-datepicker/dist/react-datepicker.css';
 
-// Definición local del tipo Pago para PaymentsPage
+// Definición local del tipo Pago para PaymentsPage, actualizada con comprobantes
 // Esto asegura que tenemos los campos necesarios, incluyendo opcionales para el frontend.
 // Debería coincidir con lo que el backend finalmente devuelve.
-export interface Pago {
+
+import { Pago } from '../services/api';
+/* export interface Pago {
   _id: string;
-  loan_id?: string; // ID del préstamo asociado, opcional pero preferido
-  loan_label?: string; // Label del préstamo, opcional
+  prestamo: string | Prestamo; // Cambiado a requerido y usando el tipo Prestamo importado
+  loan_label?: string; // Mantener si se usa para mostrar, pero el modal usará prestamo.label si es objeto
   amount: number;
   payment_date: string | Date;
   status: string; // ej. pagado, pendiente, vencido, incompleto
   label?: string; // ej. Cuota 1, Cuota Extraordinaria
   installment_number?: number;
   payment_method?: string; // ej. PSE, Bancolombia, Efectivo
+  comprobantes?: Array<{
+    _id?: string;
+    public_id: string;
+    url: string;
+    filename?: string;
+    uploadedAt?: string; 
+  }>;
   // Otros campos que pueda tener un pago según tu API
   [key: string]: any; // Para permitir otros campos y flexibilidad con sortConfig
 }
-
+ */
 interface LoanForFilter {
   _id: string;
   label: string;
@@ -60,40 +72,33 @@ const PaymentsPage: React.FC = () => {
   const [availableLoans, setAvailableLoans] = useState<LoanForFilter[]>([]); // Para poblar el select de préstamos
 
   // TODO: Definir estado para ordenamiento (sortConfig)
-  const [sortConfig, setSortConfig] = useState<{ key: keyof Pago | 'loan_label' | null; direction: string }>({ key: 'payment_date', direction: 'descending' });
+  const [sortConfig, setSortConfig] = useState<{ key: keyof Pago | 'loan_label' | 'actions' | 'comprobantes' | null; direction: string }>({ key: 'payment_date', direction: 'descending' });
 
-  // Simulación de carga de préstamos para el filtro
+  const [selectedPayment, setSelectedPayment] = useState<Pago | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+
+  // Carga inicial de préstamos para el filtro
   const fetchLoansForFilter = useCallback(async () => {
-    //console.log("Attempting to fetch loans for filter. User ID:", user?._id);
     if (!user?._id) {
-      //console.log("User ID not available, skipping fetchLoansForFilter.");
-      setAvailableLoans([]); // Asegurar que esté vacío si no hay usuario
+      setAvailableLoans([]);
       return;
     }
-    // setIsLoading(true); // Podrías tener un loader específico para el filtro de préstamos
-    
     try {
-      //console.log("Inside try: fetching loans for filter"); // Corregido y mensaje modificado
-      const response = await apiService.getLoansForUserFilter(); // LLAMADA REAL
-      //console.log("Response from getLoansForUserFilter:", response);
-      setAvailableLoans(response || []); // response directamente es el array
+      const response = await apiService.getLoansForUserFilter();
+      setAvailableLoans(response || []);
     } catch (err: any) {
-      //console.error("Error fetching loans for filter:", err);
       setError(err.message || "No se pudieron cargar los préstamos para el filtro.");
-      setAvailableLoans([]); // Asegurar que sea un array vacío en caso de error
+      setAvailableLoans([]);
     }
-    // setIsLoading(false);
-  }, [user]); // fetchLoansForFilter depende de 'user'
+  }, [user]);
 
   useEffect(() => {
-    console.log("useEffect for fetchLoansForFilter triggered. User:", user);
-    if (user && user._id) { // Condición más explícita
+    if (user && user._id) {
         fetchLoansForFilter();
     } else {
-        console.log("User or user._id not present, clearing available loans.");
-        setAvailableLoans([]); // Limpiar si el usuario se desloguea o no está presente
+        setAvailableLoans([]);
     }
-  }, [user, fetchLoansForFilter]); // Dependencias actualizadas
+  }, [user, fetchLoansForFilter]);
 
   // Funciones de utilidad (copiadas de LoanDetailPage para consistencia)
   const formatCurrency = (amount: number): string => {
@@ -153,13 +158,10 @@ const PaymentsPage: React.FC = () => {
     }
   };
 
-  // TODO: Lógica para cargar pagos (fetchPayments)
-  // Esta función debería llamar a un servicio (apiService.getAllPaymentsByUser o similar)
-  // y actualizar los estados: payments, totalPages, isLoading, error.
-  // Debería aceptar filtros, ordenamiento y paginación como parámetros.
+  // Función para cargar pagos
   const fetchPayments = useCallback(async () => {
       if (!user?._id) {
-        setPayments([]); // Limpiar pagos si no hay usuario
+        setPayments([]);
         setTotalPages(0);
         return;
       }
@@ -175,40 +177,74 @@ const PaymentsPage: React.FC = () => {
           loanId: selectedLoanId || undefined,
           sortBy: sortConfig.key as string,
           sortOrder: sortConfig.direction,
-          userId: user._id
+          // userId: user._id // Ya no es necesario enviar userId, el backend lo toma del token
         };
-        //console.log("Fetching payments with params:", params);
         
-        const response = await apiService.getFilteredPayments(params); // LLAMADA REAL
-        console.log("response",response)
-        // Ajuste aquí: la respuesta ya es el objeto FilteredPaymentsResponse
+        const response = await apiService.getFilteredPayments(params);
         setPayments(response.payments || []); 
         setTotalPages(response.totalPages || 0);
 
       } catch (err: any) {
-        //console.error("Error fetching payments:", err);
         setError(err.message || "No se pudieron cargar los pagos.");
         setPayments([]);
         setTotalPages(0);
       } finally {
         setIsLoading(false);
       }
+  // Se quita fetchPayments de sus propias dependencias para evitar bucles si no se maneja cuidadosamente.
+  // Las dependencias correctas para re-disparar fetchPayments están en el useEffect de abajo.
   }, [user?._id, currentPage, startDate, endDate, statusFilter, selectedLoanId, sortConfig]);
 
+  // useEffect para re-cargar pagos cuando cambian los filtros, paginación o el usuario.
   useEffect(() => {
-   // console.log("useEffect for fetchPayments triggered. User:", user);
     if (user?._id) {
-     // console.log("useEffect for fetchPayments triggered. User:", user);
       fetchPayments();
     } else {
-      // Si no hay usuario, limpiar los pagos y resetear la paginación
-      console.log("useEffect for fetchPayments triggered. User not present, clearing payments.");
       setPayments([]);
       setTotalPages(0);
-      setCurrentPage(1);
-      setIsLoading(false); // Asegurarse que no se quede cargando
+      setCurrentPage(1); // Resetear página si el usuario se desloguea
+      setIsLoading(false);
     }
-  }, [fetchPayments, user?._id]); // user?._id sigue siendo válido aquí, ya que fetchPayments depende de él
+  // eslint-disable-next-line react-hooks/exhaustive-deps 
+  }, [user?._id, currentPage, startDate, endDate, statusFilter, selectedLoanId, sortConfig, fetchPayments]); // fetchPayments se incluye aquí
+
+  // useEffect para resetear la página actual a 1 cuando los filtros (excepto paginación y ordenamiento) cambian
+  useEffect(() => {
+    // No resetear si es el cambio inicial o si solo cambió la página/ordenamiento
+    // Esto es para evitar un doble fetch al cambiar la página.
+    // Considera si este efecto es estrictamente necesario o si el efecto anterior es suficiente.
+    // Por ahora, se omite para simplificar y evitar posibles bucles de re-renderizado.
+    // Si se necesita, se debe implementar con cuidado para evitar re-cargas innecesarias.
+    // Ejemplo:
+    // const initialLoadRef = useRef(true);
+    // useEffect(() => {
+    //   if (initialLoadRef.current) {
+    //     initialLoadRef.current = false;
+    //     return;
+    //   }
+    //   setCurrentPage(1);
+    // }, [startDate, endDate, statusFilter, selectedLoanId]);
+    // Nota: Resetear currentPage disparará el useEffect anterior para llamar a fetchPayments.
+  }, [startDate, endDate, statusFilter, selectedLoanId]);
+
+  const handleOpenModal = (pago: Pago) => {
+    setSelectedPayment(pago);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedPayment(null);
+  };
+
+  const handlePaymentUpdate = (updatedPayment: Pago) => {
+    // Actualizar la lista de pagos para reflejar los cambios (ej. nuevos comprobantes)
+    setPayments(prevPayments => 
+      prevPayments.map(p => p._id === updatedPayment._id ? updatedPayment : p)
+    );
+    // Opcionalmente, se podría llamar a fetchPayments() para recargar todo, 
+    // pero la actualización local es más optimista si el modal devuelve el pago completo.
+  };
 
   // TODO: Lógica para manejar cambio de orden (handleSort)
   // TODO: Lógica para manejar cambio de filtros (applyFilters)
@@ -217,15 +253,97 @@ const PaymentsPage: React.FC = () => {
     setCurrentPage(newPage);
   };
   
-  const handleSort = (key: keyof Pago | 'loan_label') => {
+  const handleSort = (key: keyof Pago | 'loan_label' | 'actions' | 'comprobantes') => {
     setSortConfig(prevConfig => ({
       key,
       direction: prevConfig.key === key && prevConfig.direction === 'ascending' ? 'descending' : 'ascending'
     }));
   };
 
-  // Renderizado
-  if (isLoading && payments.length === 0) { // Mostrar spinner solo si no hay datos previos
+  // ***** INICIO DEFINICIÓN DE COLUMNAS *****
+  const paymentTableColumns: Column<Pago>[] = [
+    {
+      key: 'comprobantes',
+      header: '', 
+      className: 'w-10 text-center px-2 py-3',
+      customRender: (pago) => (
+        <div className="flex justify-center items-center h-full">
+          {pago.comprobantes && pago.comprobantes.length > 0 ? (
+            <span title="Tiene comprobantes">
+              <Paperclip size={16} className="text-gray-500" />
+            </span>
+          ) : (
+            <span className="w-[16px] inline-block" title="Sin comprobantes">
+              {/* Puedes poner un ícono placeholder o dejarlo vacío */}
+               <HelpCircle size={16} className="text-gray-300" /> 
+            </span> 
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'loan_label',
+      header: 'Préstamo',
+      sortable: true,
+      className: 'min-w-[150px] whitespace-normal break-words px-4 py-3',
+      customRender: (pago) => pago.loan_label || 'N/A',
+    },
+    {
+      key: 'label',
+      header: 'Cuota',
+      sortable: true,
+      className: 'min-w-[100px] px-4 py-3',
+      customRender: (pago) => pago.label || (pago.installment_number ? `Cuota ${pago.installment_number}` : 'N/A'),
+    },
+    {
+      key: 'payment_date',
+      header: 'Fecha Venc.',
+      sortable: true,
+      className: 'min-w-[120px] px-4 py-3',
+      customRender: (pago) => formatDate(pago.payment_date),
+    },
+    {
+      key: 'amount',
+      header: 'Monto',
+      sortable: true,
+      className: 'min-w-[100px] text-right px-4 py-3',
+      headerClassName: 'text-right px-4 py-3',
+      customRender: (pago) => formatCurrency(pago.amount),
+    },
+    {
+      key: 'status',
+      header: 'Estado',
+      sortable: true,
+      className: 'min-w-[120px] text-center px-4 py-3',
+      headerClassName: 'text-center px-4 py-3',
+      customRender: (pago) => (
+        <span className={`px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusClasses(pago.status)}`}>
+          {translateStatusToSpanish(pago.status)}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      header: 'Acciones',
+      className: 'text-center w-20 px-4 py-3',
+      headerClassName: 'text-center px-4 py-3',
+      customRender: (pago) => (
+        <button 
+          onClick={(e) => { 
+            e.stopPropagation();
+            handleOpenModal(pago); 
+          }}
+          className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-full transition-colors duration-150"
+          title="Ver Detalles"
+        >
+          <Eye size={18} />
+        </button>
+      ),
+    },
+  ];
+  // ***** FIN DEFINICIÓN DE COLUMNAS *****
+
+  if (isLoading && payments.length === 0) {
     return <LoadingSpinner />;
   }
 
@@ -241,7 +359,7 @@ const PaymentsPage: React.FC = () => {
       {/* Sección de Filtros */}
       <div className="mb-6 p-4 bg-white shadow-md rounded-lg">
         <h3 className="text-xl font-semibold text-gray-700 mb-4">Filtros</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 items-end">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 items-end">
           <div>
             <label htmlFor="startDate" className="block text-sm font-medium text-gray-700 mb-1">Fecha Inicio</label>
             <input 
@@ -292,93 +410,38 @@ const PaymentsPage: React.FC = () => {
               ))}
             </select>
           </div>
-          <div className="flex">
-            <button 
-              onClick={fetchPayments} 
-              disabled={isLoading || !user?._id}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed h-[42px]"
-            >
-              {isLoading ? 'Filtrando...' : 'Aplicar Filtros'}
-            </button>
-          </div>
         </div>
       </div>
 
-      {/* Tabla de Pagos */}
-      {isLoading && payments.length > 0 && (
-        <div className="absolute inset-0 bg-white bg-opacity-50 flex justify-center items-center z-10">
-            <LoadingSpinner />
+      {/* Error Display */}
+      {error && (
+        <div className="mb-4 p-3 text-red-700 bg-red-100 border border-red-400 rounded-md">
+          Error: {error}
         </div>
       )}
-      <div className="bg-white shadow-xl rounded-lg overflow-hidden relative">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onClick={() => handleSort('payment_date')}>
-                  Fecha {sortConfig.key === 'payment_date' ? (sortConfig.direction === 'ascending' ? '↑' : '↓') : ''}
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onClick={() => handleSort('loan_label')}>
-                  Préstamo {sortConfig.key === 'loan_label' ? (sortConfig.direction === 'ascending' ? '↑' : '↓') : ''}
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onClick={() => handleSort('label')}>
-                  Cuota {sortConfig.key === 'label' ? (sortConfig.direction === 'ascending' ? '↑' : '↓') : ''}
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onClick={() => handleSort('amount')}>
-                  Monto {sortConfig.key === 'amount' ? (sortConfig.direction === 'ascending' ? '↑' : '↓') : ''}
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onClick={() => handleSort('payment_method')}>
-                  Método {sortConfig.key === 'payment_method' ? (sortConfig.direction === 'ascending' ? '↑' : '↓') : ''}
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onClick={() => handleSort('status')}>
-                  Estado {sortConfig.key === 'status' ? (sortConfig.direction === 'ascending' ? '↑' : '↓') : ''}
-                </th>
-                {/* <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th> */}
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {/*!isLoading &&*/ !error && payments.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="text-center py-10 px-4 text-gray-500">
-                    No se encontraron pagos con los filtros seleccionados o no hay pagos registrados.
-                  </td>
-                </tr>
-              )}
-              {/*!isLoading &&*/ error && (
-                 <tr>
-                  <td colSpan={6} className="text-center py-10 px-4 text-red-600 bg-red-50">
-                    {error} Intente aplicar los filtros nuevamente o recargue la página.
-                  </td>
-                </tr>
-              )}
-              {/*!isLoading &&*/ payments.length > 0 && payments.map((pago) => (
-                <tr key={pago._id} className="hover:bg-gray-50 transition duration-150">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{formatDate(pago.payment_date)}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                    {pago.loan_id ? 
-                      <Link to={`/loans/${pago.loan_id}`} className="text-blue-600 hover:underline">
-                        {/* Asumimos que el backend podría enviar algo como pago.loan_details.label o pago.loan_label */}
-                        { (pago as any).loan_label || `Préstamo ${pago.loan_id.substring(0,8)}...`}
-                      </Link> 
-                      : 'N/A'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{pago.label || pago.installment_number || 'N/A'}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{formatCurrency(pago.amount)}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 capitalize">{pago.payment_method || 'N/A'}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={getStatusClasses(pago.status)}>
-                      {translateStatusToSpanish(pago.status)}
-                    </span>
-                  </td>
-                  {/* <td className="px-6 py-4 whitespace-nowrap text-sm font-medium"> */}
-                    {/* Acciones como ver detalle de pago podrían ir aquí */}
-                  {/* </td> */}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      
+      {/* ReusableTable Integration */}
+      {isLoading && payments.length === 0 && <LoadingSpinner />} 
+      {!isLoading && payments.length === 0 && !error && (
+         <div className="text-center py-10">
+            <p className="text-gray-500 text-lg">No hay pagos para mostrar con los filtros actuales.</p>
+          </div>
+      )}
+      {payments.length > 0 && (
+        <ReusableTable<Pago>
+          columns={paymentTableColumns}
+          data={payments}
+          keyExtractor={(pago) => pago._id}
+          onSort={(columnKey) => handleSort(columnKey as keyof Pago | 'loan_label' | 'actions' | 'comprobantes')}
+          sortColumn={sortConfig.key as string}
+          sortOrder={sortConfig.direction as ('asc' | 'desc')}
+          tableClassName="min-w-full divide-y divide-gray-200 bg-white shadow-md rounded-lg"
+          headerRowClassName="bg-gray-50"
+          bodyRowClassName="hover:bg-gray-50 transition-colors duration-150"
+          emptyStateMessage="No se encontraron pagos."
+          // onRowClick={handleOpenModal} // Opcional: si quieres que toda la fila abra el modal
+        />
+      )}
 
       {/* Paginación */}
       {totalPages > 1 && (
@@ -418,6 +481,16 @@ const PaymentsPage: React.FC = () => {
             </button>
           </div>
         </div>
+      )}
+
+      {/* PaymentModal Integration */}
+      {selectedPayment && (
+        <PaymentModal
+          show={isModalOpen}
+          onHide={handleCloseModal}
+          payment={selectedPayment}
+          onPaymentUpdate={handlePaymentUpdate}
+        />
       )}
     </div>
   );

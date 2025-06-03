@@ -2,6 +2,7 @@ import Pago from '../models/pago.js';
 import Prestamo from '../models/prestamo.js';
 import { sendNotificationToUser } from '../socketHandler.js'; // Importar función de notificación
 import { v4 as uuidv4 } from 'uuid'; // Para generar IDs para las notificaciones
+import cloudinary from '../config/cloudinaryConfig.js'; // Importar Cloudinary
 
 // Obtener pago por ID
 export const getPagoById = async (req, res) => {
@@ -242,22 +243,30 @@ export const deletePago = async (req, res) => {
 // Nuevo: Obtener pagos filtrados, paginados y ordenados para el usuario autenticado
 export const getFilteredUserPayments = async (req, res) => {
     try {
-        const userId = req.user._id; // ID del usuario autenticado
+        const clienteIdFromToken = req.user?._id || req.clienteId;
+
+        if (!clienteIdFromToken) {
+            return res.status(400).json({ message: "No se pudo determinar el ID del cliente desde el token para filtrar pagos." });
+        }
+
         let { 
             page = 1, 
             limit = 10, 
             startDate,
             endDate,
             status,
-            loanId,
-            sortBy = 'payment_date', 
-            sortOrder = 'desc' 
+            loanId, // Este loanId es para filtrar por un préstamo específico
         } = req.query;
+        
+        const sortBy = req.query.sortBy || 'payment_date';
+        const sortOrder = req.query.sortOrder || 'desc';
 
         page = parseInt(page) || 1;
         limit = parseInt(limit) || 10;
 
-        const query = { client_id: userId }; 
+        // La query para el modelo Pago comienza vacía o con filtros directos de Pago.
+        // El filtro por cliente se aplica indirectamente a través de los loan_id.
+        const query = {}; 
 
         if (startDate) {
             query.payment_date = { ...query.payment_date, $gte: new Date(startDate) };
@@ -270,8 +279,35 @@ export const getFilteredUserPayments = async (req, res) => {
         if (status) {
             query.status = status;
         }
+
         if (loanId) {
-            query.loan_id = loanId; 
+            // Si se filtra por un loanId específico, verificar que pertenezca al cliente.
+            // Usar 'client_id' según el modelo Prestamo.
+            const prestamoDelCliente = await Prestamo.findOne({ _id: loanId, client_id: clienteIdFromToken }).lean();
+            if (!prestamoDelCliente) {
+                return res.json({ 
+                    payments: [],
+                    currentPage: page,
+                    totalPages: 0,
+                    totalItems: 0
+                });
+            }
+            query.loan_id = loanId; // Aplicar filtro de préstamo a la consulta de Pagos
+        } else {
+            // Si no se filtra por un loanId específico, obtener todos los IDs de préstamos del cliente.
+            // Usar 'client_id' según el modelo Prestamo.
+            const prestamosDelCliente = await Prestamo.find({ client_id: clienteIdFromToken }).select('_id').lean();
+            if (!prestamosDelCliente.length) {
+                 // Si el cliente no tiene préstamos, no tendrá pagos.
+                return res.json({ 
+                    payments: [],
+                    currentPage: page,
+                    totalPages: 0,
+                    totalItems: 0
+                });
+            }
+            const idsDePrestamosDelCliente = prestamosDelCliente.map(p => p._id);
+            query.loan_id = { $in: idsDePrestamosDelCliente }; // Aplicar filtro a la consulta de Pagos
         }
 
         const sortOptions = {};
@@ -279,27 +315,35 @@ export const getFilteredUserPayments = async (req, res) => {
             sortOptions[sortBy] = sortOrder === 'asc' ? 1 : -1;
         }
         
-        let paymentsQuery = Pago.find(query)
+        const totalPayments = await Pago.countDocuments(query); // Contar antes de popular y paginar para el total correcto
+
+        if (totalPayments === 0) {
+            return res.json({
+                payments: [],
+                currentPage: page,
+                totalPages: 0,
+                totalItems: 0
+            });
+        }
+        
+        const paymentsData = await Pago.find(query)
             .sort(sortOptions)
             .skip((page - 1) * limit)
-            .limit(limit);
+            .limit(limit)
+            .populate({
+                path: 'loan_id',
+                select: 'label' 
+            })
+            .lean();
 
-        paymentsQuery = paymentsQuery.populate({
-            path: 'loan_id',
-            select: 'label amount client_id' // Ajusta según los campos que necesites de Loan
-        }).lean();
-
-        const paymentsData = await paymentsQuery;
-        const totalPayments = await Pago.countDocuments(query);
         const totalPages = Math.ceil(totalPayments / limit);
 
         const processedPayments = paymentsData.map(p => {
-            const paymentResult = {
+            return {
                 ...p,
-                loan_id: p.loan_id && p.loan_id._id ? p.loan_id._id.toString() : (p.loan_id ? p.loan_id.toString() : undefined),
                 loan_label: p.loan_id && p.loan_id.label ? p.loan_id.label : (p.loan_label || 'N/A'),
+                _id: p._id 
             };
-            return paymentResult;
         });
 
         res.json({ 
@@ -313,4 +357,135 @@ export const getFilteredUserPayments = async (req, res) => {
         console.error("Error fetching filtered payments:", error);
         res.status(500).json({ message: "Error al obtener los pagos: " + error.message });
     }
+}; 
+
+// Nueva función para subir comprobante de pago
+export const uploadComprobantePago = async (req, res) => {
+  try {
+    const { pagoId } = req.params;
+    const clienteId = req.clienteId; // Asumimos que verificarToken añade clienteId
+
+    if (!req.file) {
+      return res.status(400).json({ mensaje: 'No se proporcionó ningún archivo.' });
+    }
+
+    // Verificar que el pago existe y pertenece al cliente (o que el usuario tiene permisos)
+    const pago = await Pago.findById(pagoId);
+    if (!pago) {
+      return res.status(404).json({ mensaje: 'Pago no encontrado.' });
+    }
+
+    // Opcional: Verificar propiedad (que el pago pertenezca al clienteId autenticado)
+    // Esto requeriría que el modelo Pago tenga una referencia directa a client_id o 
+    // buscar el Préstamo asociado y verificar su client_id.
+    const prestamoAsociado = await Prestamo.findById(pago.loan_id);
+    if (!prestamoAsociado || prestamoAsociado.client_id.toString() !== clienteId.toString()) {
+        return res.status(403).json({ mensaje: 'No tienes permiso para modificar este pago.' });
+    }
+
+    // Subir archivo a Cloudinary
+    // Es buena práctica subir a una carpeta específica y usar el public_id original o uno generado
+    const uploadResult = await new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder: 'webpresta/comprobantes_pago',
+          // public_id: req.file.originalname, // Podrías usar el nombre original o dejar que Cloudinary genere uno
+          resource_type: 'auto' // Detecta si es imagen, pdf, etc.
+        }, 
+        (error, result) => {
+          if (error) return reject(error);
+          resolve(result);
+        }
+      );
+      uploadStream.end(req.file.buffer);
+    });
+
+    if (!uploadResult || !uploadResult.secure_url || !uploadResult.public_id) {
+        console.error('Error en la subida a Cloudinary:', uploadResult);
+        return res.status(500).json({ mensaje: 'Error al subir el archivo a Cloudinary.' });
+    }
+
+    const nuevoComprobante = {
+      public_id: uploadResult.public_id,
+      url: uploadResult.secure_url,
+      filename: req.file.originalname,
+      uploadedAt: new Date()
+    };
+
+    // Añadir el nuevo comprobante al array y guardar
+    pago.comprobantes.push(nuevoComprobante);
+    await pago.save();
+
+    res.status(200).json({ 
+      mensaje: 'Comprobante subido y asociado al pago exitosamente.', 
+      pagoActualizado: pago 
+    });
+
+  } catch (error) {
+    console.error('Error al subir comprobante de pago:', error);
+    if (error.message && error.message.includes('Tipo de archivo no permitido')) {
+        return res.status(400).json({ mensaje: error.message });
+    }
+    if (error.http_code === 404) { // Error específico de Cloudinary si la configuración es incorrecta, etc.
+        return res.status(500).json({ mensaje: 'Error con el servicio de Cloudinary. Verifica la configuración.'});
+    }
+    res.status(500).json({ mensaje: 'Error interno del servidor al subir el comprobante.' });
+  }
+};
+
+// Nueva función para borrar un comprobante de pago
+export const deleteComprobantePago = async (req, res) => {
+  try {
+    const { pagoId, comprobanteCloudinaryId } = req.params;
+    const clienteId = req.clienteId; // Asumimos que verificarToken añade clienteId
+
+    // Verificar que el pago existe
+    const pago = await Pago.findById(pagoId);
+    if (!pago) {
+      return res.status(404).json({ mensaje: 'Pago no encontrado.' });
+    }
+
+    // Verificar propiedad del pago (a través del préstamo asociado)
+    const prestamoAsociado = await Prestamo.findById(pago.loan_id);
+    if (!prestamoAsociado || prestamoAsociado.client_id.toString() !== clienteId.toString()) {
+      return res.status(403).json({ mensaje: 'No tienes permiso para modificar este pago.' });
+    }
+
+    // Encontrar el índice del comprobante a borrar
+    const comprobanteIndex = pago.comprobantes.findIndex(
+      (comp) => comp.public_id === comprobanteCloudinaryId
+    );
+
+    if (comprobanteIndex === -1) {
+      return res.status(404).json({ mensaje: 'Comprobante no encontrado en este pago.' });
+    }
+
+    // Eliminar de Cloudinary
+    const destroyResult = await cloudinary.uploader.destroy(comprobanteCloudinaryId);
+    
+    // Cloudinary devuelve { result: 'ok' } o { result: 'not found' }, etc.
+    if (destroyResult.result !== 'ok' && destroyResult.result !== 'not found') {
+      // Si no es 'ok' ni 'not found', podría ser un error o una configuración inesperada.
+      // 'not found' es aceptable porque quizás ya fue borrado o el ID era incorrecto, 
+      // pero igual queremos eliminar la referencia de nuestra BD.
+      console.warn('Resultado inesperado al borrar de Cloudinary:', destroyResult);
+      // Considera si quieres detener la operación aquí o continuar para limpiar la BD
+    }
+
+    // Eliminar del array en la base de datos
+    pago.comprobantes.splice(comprobanteIndex, 1);
+    await pago.save();
+
+    res.status(200).json({ 
+      mensaje: 'Comprobante eliminado exitosamente.', 
+      pagoActualizado: pago 
+    });
+
+  } catch (error) {
+    console.error('Error al eliminar comprobante de pago:', error);
+    if (error.http_code) { // Errores específicos de la API de Cloudinary
+        return res.status(500).json({ mensaje: `Error con el servicio de Cloudinary: ${error.message}`});
+    }
+    res.status(500).json({ mensaje: 'Error interno del servidor al eliminar el comprobante.' });
+  }
 }; 
