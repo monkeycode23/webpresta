@@ -73,7 +73,7 @@ router.post(
 
 // Nueva ruta para borrar un comprobante de pago específico
 router.delete(
-  '/:pagoId/comprobantes/:comprobanteCloudinaryId',
+  '/comprobantes/:pagoId',
   verificarToken,
   deleteComprobantePago
 );

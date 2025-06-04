@@ -383,6 +383,9 @@ export const uploadComprobantePago = async (req, res) => {
         return res.status(403).json({ mensaje: 'No tienes permiso para modificar este pago.' });
     }
 
+    if(pago.comprobantes.length > 3){
+      return res.status(400).json({ mensaje: 'Este pago ya tiene el máximo de comprobantes subidos.' });
+    }
     // Subir archivo a Cloudinary
     // Es buena práctica subir a una carpeta específica y usar el public_id original o uno generado
     const uploadResult = await new Promise((resolve, reject) => {
@@ -405,6 +408,7 @@ export const uploadComprobantePago = async (req, res) => {
         return res.status(500).json({ mensaje: 'Error al subir el archivo a Cloudinary.' });
     }
 
+
     const nuevoComprobante = {
       public_id: uploadResult.public_id,
       url: uploadResult.secure_url,
@@ -421,6 +425,28 @@ export const uploadComprobantePago = async (req, res) => {
       pagoActualizado: pago 
     });
 
+    /* //TODO: Enviar notificación al usuario
+    const users = await User.find()
+    const cliente = await Cliente.findById(req.clienteId)
+
+    users.forEach(async (user) => {
+      const notification = new Notification({
+        type: 'success',
+        title: 'Comprobante subido',
+        message: `El cliente ${cliente.name} ha subido un comprobante de pago para el préstamo ${pago.loan_id}`,
+        link: `/loans/${pago.loan_id}`,
+        sender_client_id:req.clienteId,
+        user_id:user._id
+      });
+      await notification.save();
+
+      user.notifications.push(notification._id)
+      await user.save()
+
+      sendNotificationToUser("user",user._id, notification)
+
+    }); */
+
   } catch (error) {
     console.error('Error al subir comprobante de pago:', error);
     if (error.message && error.message.includes('Tipo de archivo no permitido')) {
@@ -436,7 +462,9 @@ export const uploadComprobantePago = async (req, res) => {
 // Nueva función para borrar un comprobante de pago
 export const deleteComprobantePago = async (req, res) => {
   try {
-    const { pagoId, comprobanteCloudinaryId } = req.params;
+    const { pagoId,  } = req.params;
+    console.log(req.body)
+    const {comprobanteCloudinaryId} = req.body;
     const clienteId = req.clienteId; // Asumimos que verificarToken añade clienteId
 
     // Verificar que el pago existe

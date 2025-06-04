@@ -21,9 +21,12 @@ router.get('/user', [verificarToken], getNotificationsForUser);
 router.get('/client', [verificarToken], getNotificationsForClient);
 
 // Marcar una notificación como leída
-router.patch('/:notificationId/read', [verificarToken], markNotificationAsRead);
+router.post('/mark-read', [verificarToken], markNotificationAsRead);
 
 // Eliminar una notificación
 router.delete('/:notificationId', [verificarToken], deleteNotification);
+
+
+router.put('/create',[verificarToken],createNotification)
 
 export default router; 

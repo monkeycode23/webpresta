@@ -318,13 +318,29 @@ const apiService = {
 
   deletePaymentProof: async (pagoId: string, comprobanteCloudinaryId: string): Promise<any> => {
     try {
-      const response = await api.delete(`/pagos/${pagoId}/comprobantes/${comprobanteCloudinaryId}`);
+      const response = await api.delete(`/pagos/comprobantes/${pagoId}`,{
+        data: {
+          comprobanteCloudinaryId
+        }
+      });
       return response.data;
     } catch (error) {
       console.error('Error deleting payment proof:', error);
       throw error;
     }
   },
+
+  async sendNotification({type,message,userId,clientId}:
+    {type:string,message:string,userId?:string,clientId?:string}){
+    
+    try {
+      const response = await api.put(`/notifications/create`,{type,message,user_id:userId,client_id:clientId});
+      return response.data;
+    } catch (error) {
+      console.error('Error deleting payment proof:', error);
+      throw error;
+    }
+  }
 };
 
 export default apiService; 

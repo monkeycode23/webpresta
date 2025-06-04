@@ -2,7 +2,6 @@ import React, { createContext, useContext } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../store';
 import { login as loginAction, logout as logoutAction } from '../store/slices/authSlice';
-
 interface AuthProviderProps {
   children: React.ReactNode;
 }

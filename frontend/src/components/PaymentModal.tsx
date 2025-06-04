@@ -5,6 +5,8 @@ import apiService from '../services/api';
 import { useDropzone } from 'react-dropzone';
 import { UploadCloud, Trash2, Paperclip, AlertCircle, ExternalLinkIcon as ExternalLink } from 'lucide-react'; // Example icons, ensure ExternalLinkIcon is correctly named or aliased
 import { toast } from 'react-toastify'; // Assuming react-toastify is used
+import { useSelector } from 'react-redux';
+
 
 interface PaymentModalProps {
   show: boolean;
@@ -17,8 +19,12 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ show, onHide, payment: init
   const [currentPayment, setCurrentPayment] = useState<Pago | null>(initialPayment);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const user = useSelector((state:any)=>state.auth.user)
 
   useEffect(() => {
+
+    console.log(user);
+    console.log(initialPayment)
     setCurrentPayment(initialPayment);
     setUploadError(null); // Reset error when modal reopens or payment changes
   }, [initialPayment, show]);
@@ -99,6 +105,14 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ show, onHide, payment: init
           onPaymentUpdate(response.pagoActualizado);
         }
         toast.success('Comprobante subido exitosamente!');
+
+        const response2 = await apiService.sendNotification({
+          type:"info",
+          message:`El cliente ${user.nickname} ha subido un comprobante para el ${currentPayment.label} del Prestamo `,
+          userId:"asdasd",
+         // clientId:user.client_id
+        })
+
       } else {
         throw new Error("No se recibió el pago actualizado del servidor.");
       }

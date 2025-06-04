@@ -4,7 +4,9 @@ import { useAuth } from '../context/AuthContext';
 // import { Bell20Solid, BellAlert16Solid } from './icons'; // No se usarán directamente aquí
 import NotificationBell from './NotificationBell'; // Importar el nuevo componente
 // import { HiBell } from 'react-icons/hi'
-// import { io } from "socket.io-client"; 
+// import { io } from "socket.io-client";   
+import  socketService  from '../services/socketService';
+
 
 // const socket = io(process.env.REACT_APP_API_URL || "http://localhost:4000"); 
  
@@ -14,6 +16,7 @@ const Navigation: React.FC = () => {
   
   const handleLogout = () => {
     logout();
+    socketService.disconnect();
     navigate('/login');
   };
 

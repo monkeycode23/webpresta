@@ -80,6 +80,7 @@ export default function initializeSocket(io) {
   });
 
   io.on('connection', async(socket) => {
+    
     console.log(`User connected: ${socket.id}, ClienteID: ${socket.clienteId || 'Anonymous'}`);
 
     let _connectedClientes = Array.from(connectedClientes.keys())
@@ -92,12 +93,18 @@ export default function initializeSocket(io) {
      const cliente = await Cliente.findOne({_id:socket.clienteId})
      
      if(cliente){
-      const clientes = await Cliente.find({ _id: { $in: _connectedClientes } });
+     // const clientes = await Cliente.find({ _id: { $in: _connectedClientes } });
       const users = await User.find({_id:{$in:_connectedUsers}})
-
-      socket.emit('userOnlineStatus', { clienteId: socket.clienteId, isOnline: true,
-        onlineClientes: clientes.length ? clientes : [],
-        onlineUsers: users.length ? users : [] });
+      socket.emit('usersOnlineStatus',{onlineUsers:users})
+      
+      users.forEach(async(user)=>{
+        if(connectedUsers.get(user._id.toString())){
+          io.to(connectedUsers.get(user._id.toString()))
+          .emit('clientConnected',{ clienteId: cliente._id, isOnline: true,cliente} );
+          console.log("clientConnected",connectedUsers.get(user._id.toString()))
+        }
+      })
+      //socket.emit('userOnlineStatus', { });
      }
       
     }
@@ -111,9 +118,16 @@ export default function initializeSocket(io) {
       const users = await User.find({ _id: { $in: _connectedUsers } });
       const clientes = await Cliente.find({ _id: { $in: _connectedClientes } });
 
-      socket.emit('userOnlineStatus', { userId: socket.userId, isOnline: true, 
-        onlineUsers: users.length ? users : [],
-        onlineClientes: clientes.length ? clientes : [] });
+      socket.emit('clientesOnlineStatus',{onlineClientes:clientes,onlineUsers:users})
+      console.log("clientesOnlineStatus",clientes)
+      
+      clientes.forEach(async(cliente)=>{  
+        if(connectedClientes.get(cliente._id.toString())){
+          io.to(connectedClientes.get(cliente._id.toString()))
+          .emit('userConnected', { userId: socket.userId, isOnline: true, user:user });
+          console.log("userConnected",connectedClientes.get(cliente._id.toString()))
+        }
+      })
      }
       
     }
@@ -160,6 +174,7 @@ export default function initializeSocket(io) {
         
       }
     })
+    
 
     socket.on("joinRoom",async(data)=>{
       console.log("joinRoom",data)
@@ -242,48 +257,8 @@ export default function initializeSocket(io) {
         })
  */
 
-         })
-      /*   await notification.save()
-        await notification.populate('user')
-        await notification.populate('room')
-        sendNotificationToUser(user._id, notification)
- */
-
-       /*  const notification = new Notification({ 
-          user:user,
-          message:data.content,
-          room:room,
-          type:"message"
-        })
-        await notification.save()
-
-        const message = new Message({
-          user_sender:user,
-          content:data.content,
-          room:room._id,
-          type:"text"
-        })
-        
-        await message.save()
-        
-        const uer_id = connectedUsers.get(user._id.toString())
-        
-        if(user_id){
-          
-          io.to(user_id).emit('reciveMessage', data)
-        }
-      }) */
-     /*  room.connected_clients.forEach(async(client)=>{
-        const client1 = await Cliente.findOne({_id:client})
-        if(client1){
-          client1.notifications.push(data)
-          await client1.save()
-        }
-
-        if(connectedUsers.get(client.toString())){
-          io.to(connectedUsers.get(client.toString())).emit('newMessage', data)
-        }
-      }) */
+  })
+      
     });
 
     socket.on('typing', (data) => {
@@ -292,24 +267,36 @@ export default function initializeSocket(io) {
        // if (receiverSocketId) io.to(receiverSocketId).emit('userTyping', { senderId: socket.clienteId, isTyping: data.isTyping });
     });
 
-    socket.on('disconnect', () => {
+    socket.on('disconnect',async () => {
       console.log(`User disconnected: ${socket.id}, ClienteID: ${socket.clienteId || 'Anonymous'}`);
       if (socket.clienteId) {
         connectedUsers.delete(socket.clienteId.toString());
         console.log('Connected clients after disconnect:', Array.from(connectedUsers.keys()));
-        io.emit('userOnlineStatus', { clienteId: socket.clienteId, isOnline: false, onlineUsers: Array.from(connectedUsers.keys()),onlineClientes: Array.from(connectedClientes.keys()) });
+        const users = await User.find({_id:{$in:Array.from(connectedUsers.keys())}})
+        if(users){
+          users.forEach(async(user)=>{
+            io.to(connectedUsers.get(user._id.toString())).emit('clientDisconnected',{clienteId:socket.clienteId})
+          })
+        }
+        
+        //io.emit('userOnlineStatus', { clienteId: socket.clienteId, isOnline: false, onlineUsers: Array.from(connectedUsers.keys()),onlineClientes: Array.from(connectedClientes.keys()) });
       }
       if (socket.userId) {
         connectedUsers.delete(socket.userId.toString());
         console.log('Connected users after disconnect:', Array.from(connectedUsers.keys()));
-        io.emit('userOnlineStatus', { userId: socket.userId, isOnline: false, onlineUsers: Array.from(connectedUsers.keys()),onlineClientes: Array.from(connectedClientes.keys()) });
+        io.emit('userDisconnected', { userId: socket.userId, isOnline: false });
       }
     });
   });
 }
 
-export function getReceiverSocketId(receiverId) {
-  return connectedUsers.get(receiverId.toString());
+export function getReceiverSocketId(to,receiverId) {
+  if(to === "user"){
+    return connectedUsers.get(receiverId.toString());
+  }
+  if(to === "client"){
+    return connectedClientes.get(receiverId.toString());
+  }
 }
 
 /**
@@ -318,7 +305,35 @@ export function getReceiverSocketId(receiverId) {
  * @param {object} notificationData Datos de la notificación (debe coincidir con la interfaz Notification del frontend).
  *                                  Ej: { id: uuidv4(), type: 'info', title: 'Título', message: 'Mensaje', timestamp: new Date().toISOString(), read: false, link?: '/ruta' }
  */
-export function sendNotificationToUser(clienteId, notificationData) {
+
+
+export function sendNotificationToUser(to,id, notificationData) {
+  if (!mainIo) { // Usar mainIo, la instancia exportada de index.js
+    console.error('Socket.IO server (mainIo) not initialized in socketHandler.');
+    return;
+  }
+  if(to === "user"){
+    const socketId = getReceiverSocketId(id);
+    if (socketId) {
+      console.log(`Sending notification to userId ${id} (socketId ${socketId}):`, notificationData);
+    mainIo.to(socketId).emit('newNotification', notificationData);
+    } else {
+      console.log(`User ${id} no conectado. Notificación no enviada en tiempo real.`);
+      // Aquí podrías guardar la notificación en la BD para mostrarla cuando el usuario se conecte,
+      // o si ya tienes un sistema de notificaciones persistentes, asegurar que se guarde.
+    } 
+  }
+  if(to === "client"){
+    const socketId = getReceiverSocketId(id);
+    if (socketId) {
+      console.log(`Sending notification to clienteId ${id} (socketId ${socketId}):`, notificationData);
+      mainIo.to(socketId).emit('new_notification', notificationData);
+    } else {
+      console.log(`Cliente ${id} no conectado. Notificación no enviada en tiempo real.`);
+    }
+  }
+} 
+/* export function sendNotificationToCiente(clienteId, notificationData) {
   if (!mainIo) { // Usar mainIo, la instancia exportada de index.js
     console.error('Socket.IO server (mainIo) not initialized in socketHandler.');
     return;
@@ -332,7 +347,7 @@ export function sendNotificationToUser(clienteId, notificationData) {
     // Aquí podrías guardar la notificación en la BD para mostrarla cuando el usuario se conecte,
     // o si ya tienes un sistema de notificaciones persistentes, asegurar que se guarde.
   }
-} 
+}  */
 
 
 //const uri = ;
